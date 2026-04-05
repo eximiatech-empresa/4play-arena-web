@@ -1,17 +1,19 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   LayoutDashboard,
   CreditCard,
   CalendarCheck,
   UserCircle,
   LogOut,
+  Palette,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { MOCK_STUDENT } from "@/features/profile/mock-data"
 import { LevelBadge } from "@/components/shared/level-badge"
+import { useBrandTheme } from "@/hooks/use-brand-theme"
 
 const NAV_ITEMS = [
   {
@@ -38,6 +40,12 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+  const { theme, toggle } = useBrandTheme()
+
+  function handleLogout() {
+    router.push("/login")
+  }
 
   const initials = MOCK_STUDENT.name
     .split(" ")
@@ -103,10 +111,28 @@ export function Sidebar() {
               <LevelBadge level={MOCK_STUDENT.level} size="xs" className="mt-0.5" />
             </div>
           </div>
-          <button className="mt-3 flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-600 transition-colors">
-            <LogOut className="w-3 h-3" />
-            Sair
-          </button>
+          <div className="mt-3 flex items-center justify-between">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
+            >
+              <LogOut className="w-3 h-3" />
+              Sair
+            </button>
+            <button
+              onClick={toggle}
+              title={theme === "green" ? "Mudar para laranja" : "Mudar para verde"}
+              className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
+            >
+              <Palette className="w-3 h-3" />
+              <span
+                className="w-2.5 h-2.5 rounded-full border border-zinc-200"
+                style={{
+                  background: theme === "green" ? "#ff7f11" : "#4ade80",
+                }}
+              />
+            </button>
+          </div>
         </div>
       </aside>
 
