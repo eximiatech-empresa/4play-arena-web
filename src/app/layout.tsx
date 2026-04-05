@@ -30,6 +30,7 @@ export default function RootLayout({
     <html
       lang="pt-BR"
       className={cn(
+        // NOTE: theme-orange class is applied by the inline script below (FOUT prevention)
         "h-full antialiased",
         geistSans.variable,
         geistMono.variable,
@@ -37,6 +38,12 @@ export default function RootLayout({
         "font-sans"
       )}
     >
+      {/* Inline script: apply theme-orange BEFORE paint to eliminate flash */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `try{if(localStorage.getItem('4play-brand-theme')==='orange')document.documentElement.classList.add('theme-orange')}catch(e){}`,
+        }}
+      />
       <body className="min-h-full flex flex-col">
         <Providers>{children}</Providers>
       </body>

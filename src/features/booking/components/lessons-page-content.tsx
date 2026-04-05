@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import gsap from "gsap"
 import { CalendarCheck, Filter } from "lucide-react"
 import { useLessons, type LessonFilters } from "@/features/booking/hooks/use-lessons"
 import { PROFESSORS, STUDENT_LEVELS } from "@/core/constants/professors"
@@ -25,6 +26,57 @@ export function LessonsPageContent() {
   const activeFilters: LessonFilters = { ...filters, availableOnly }
   const { data: lessons, isLoading } = useLessons(activeFilters)
 
+  const gridRef = useRef<HTMLDivElement>(null)
+  const isFirstRender = useRef(true)
+  const prevIsLoading = useRef(false)
+
+  // Fade the grid OUT when loading starts (filters changed)
+  useEffect(() => {
+    if (isLoading && !prevIsLoading.current && gridRef.current) {
+      const children = Array.from(gridRef.current.children)
+      if (children.length) {
+        gsap.to(children, {
+          opacity: 0,
+          y: -10,
+          duration: 0.18,
+          ease: "power2.in",
+          stagger: 0.03,
+        })
+      }
+    }
+    prevIsLoading.current = isLoading
+  }, [isLoading])
+
+  // Stagger cards IN when new data arrives
+  useEffect(() => {
+    if (isLoading || !gridRef.current) return
+    const children = Array.from(gridRef.current.children)
+    if (!children.length) return
+
+    if (isFirstRender.current) {
+      // First load: just make visible, no animation
+      gsap.set(children, { opacity: 1, y: 0 })
+      isFirstRender.current = false
+      return
+    }
+
+    gsap.fromTo(
+      children,
+      { opacity: 0, y: 22 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.38,
+        ease: "power3.out",
+        stagger: 0.07,
+      }
+    )
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessons])
+
+  const showGrid = isLoading || (lessons && lessons.length > 0)
+  const showEmpty = !isLoading && (!lessons || lessons.length === 0)
+
   return (
     <div className="p-4 lg:p-6 pb-24 lg:pb-6 max-w-5xl mx-auto">
       {/* Header */}
@@ -39,10 +91,20 @@ export function LessonsPageContent() {
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-zinc-100 p-4 mb-5 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
-          <Filter className="w-3.5 h-3.5 text-zinc-400" />
+          <Filter
+            className={cn(
+              "w-3.5 h-3.5 transition-colors duration-200",
+              isLoading ? "text-brand animate-pulse" : "text-zinc-400"
+            )}
+          />
           <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">
             Filtros
           </span>
+          {isLoading && (
+            <span className="ml-auto text-[10px] font-medium text-brand animate-pulse">
+              Filtrando…
+            </span>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -106,30 +168,34 @@ export function LessonsPageContent() {
         </div>
       </div>
 
-      {/* Lessons grid */}
-      {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-48 rounded-2xl bg-zinc-100 animate-pulse" />
-          ))}
+      {/* Lessons grid — always mounted when loading or has results so ref stays valid */}
+      {showGrid && (
+        <div
+          ref={gridRef}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+        >
+          {isLoading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-48 rounded-2xl bg-zinc-100 animate-pulse" />
+              ))
+            : lessons!.map((lesson) => (
+                <LessonCard
+                  key={lesson.id}
+                  lesson={lesson}
+                  studentLevelIndex={MOCK_STUDENT.levelIndex}
+                  walletBalance={MOCK_WALLET.balance}
+                  onClick={() => setSelectedLesson(lesson)}
+                />
+              ))}
         </div>
-      ) : !lessons?.length ? (
+      )}
+
+      {/* Empty state */}
+      {showEmpty && (
         <div className="text-center py-16">
           <CalendarCheck className="w-10 h-10 text-zinc-200 mx-auto mb-3" />
           <p className="text-sm text-zinc-400 font-medium">Nenhuma aula encontrada</p>
           <p className="text-xs text-zinc-300 mt-1">Tente ajustar os filtros</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {lessons.map((lesson) => (
-            <LessonCard
-              key={lesson.id}
-              lesson={lesson}
-              studentLevelIndex={MOCK_STUDENT.levelIndex}
-              walletBalance={MOCK_WALLET.balance}
-              onClick={() => setSelectedLesson(lesson)}
-            />
-          ))}
         </div>
       )}
 

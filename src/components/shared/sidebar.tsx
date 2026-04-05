@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useRef } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import {
@@ -9,34 +10,138 @@ import {
   UserCircle,
   LogOut,
   Palette,
+  type LucideIcon,
 } from "lucide-react"
+import gsap from "gsap"
 import { cn } from "@/lib/utils"
 import { MOCK_STUDENT } from "@/features/profile/mock-data"
 import { LevelBadge } from "@/components/shared/level-badge"
 import { useBrandTheme } from "@/hooks/use-brand-theme"
 
 const NAV_ITEMS = [
-  {
-    label: "Visão Geral",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    label: "Carteira",
-    href: "/carteira",
-    icon: CreditCard,
-  },
-  {
-    label: "Aulas",
-    href: "/aulas",
-    icon: CalendarCheck,
-  },
-  {
-    label: "Perfil",
-    href: "/perfil",
-    icon: UserCircle,
-  },
+  { label: "Visão Geral", href: "/dashboard", icon: LayoutDashboard },
+  { label: "Carteira",    href: "/carteira",  icon: CreditCard },
+  { label: "Aulas",       href: "/aulas",     icon: CalendarCheck },
+  { label: "Perfil",      href: "/perfil",    icon: UserCircle },
 ]
+
+// ─── Desktop nav with sliding indicator ──────────────────────────────────────
+
+function DesktopNav({ pathname }: { pathname: string }) {
+  const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
+  const indicatorRef = useRef<HTMLDivElement>(null)
+  const prevIndexRef = useRef<number>(-1)
+
+  const activeIndex = NAV_ITEMS.findIndex((item) => item.href === pathname)
+
+  useEffect(() => {
+    const indicator = indicatorRef.current
+    const nav = indicator?.parentElement
+    const activeEl = itemRefs.current[activeIndex]
+    if (!indicator || !activeEl || !nav) return
+
+    // getBoundingClientRect is robust regardless of intermediate positioned ancestors
+    const navRect = nav.getBoundingClientRect()
+    const activeRect = activeEl.getBoundingClientRect()
+    const activeTop = activeRect.top - navRect.top + nav.scrollTop
+
+    const prevIndex = prevIndexRef.current
+
+    if (prevIndex === -1) {
+      // First mount: snap into position without animation
+      gsap.set(indicator, { top: activeTop, height: activeRect.height, opacity: 1 })
+    } else {
+      const prevEl = itemRefs.current[prevIndex]
+      if (prevEl) {
+        const prevRect = prevEl.getBoundingClientRect()
+        const prevTop = prevRect.top - navRect.top + nav.scrollTop
+        gsap.fromTo(
+          indicator,
+          { top: prevTop, height: prevRect.height },
+          { top: activeTop, height: activeRect.height, duration: 0.35, ease: "power2.inOut" }
+        )
+      }
+    }
+
+    prevIndexRef.current = activeIndex
+  }, [activeIndex])
+
+  return (
+    <nav className="flex-1 px-3 py-4 relative">
+      {/* Sliding background indicator */}
+      <div
+        ref={indicatorRef}
+        className="absolute left-3 right-3 bg-brand-subtle rounded-lg pointer-events-none opacity-0"
+      />
+
+      {NAV_ITEMS.map((item, i) => {
+        const isActive = activeIndex === i
+        const Icon = item.icon
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            ref={(el) => { itemRefs.current[i] = el }}
+            className={cn(
+              "relative flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors group",
+              isActive ? "text-brand-dark" : "text-zinc-500 hover:text-zinc-800"
+            )}
+          >
+            <Icon
+              className={cn(
+                "w-4 h-4 shrink-0 transition-colors",
+                isActive ? "text-brand" : "text-zinc-400 group-hover:text-zinc-600"
+              )}
+            />
+            <span>{item.label}</span>
+          </Link>
+        )
+      })}
+    </nav>
+  )
+}
+
+// ─── Mobile nav with icon bounce ─────────────────────────────────────────────
+
+interface MobileNavItemProps {
+  href: string
+  label: string
+  icon: LucideIcon
+  isActive: boolean
+}
+
+function MobileNavItem({ href, label, icon: Icon, isActive }: MobileNavItemProps) {
+  const iconRef = useRef<HTMLSpanElement>(null)
+  const prevActive = useRef(false)
+
+  useEffect(() => {
+    if (isActive && !prevActive.current && iconRef.current) {
+      gsap.fromTo(
+        iconRef.current,
+        { scale: 0.5, rotate: -15 },
+        { scale: 1, rotate: 0, duration: 0.45, ease: "back.out(2.5)" }
+      )
+    }
+    prevActive.current = isActive
+  }, [isActive])
+
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors",
+        isActive ? "text-brand" : "text-zinc-400"
+      )}
+    >
+      <span ref={iconRef} className="flex items-center justify-center">
+        <Icon className="w-5 h-5" />
+      </span>
+      {label}
+    </Link>
+  )
+}
+
+// ─── Sidebar ─────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
   const pathname = usePathname()
@@ -70,33 +175,7 @@ export function Sidebar() {
           </div>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
-          {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href
-            const Icon = item.icon
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors group",
-                  isActive
-                    ? "bg-brand-subtle text-brand-dark"
-                    : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800"
-                )}
-              >
-                <Icon
-                  className={cn(
-                    "w-4 h-4 shrink-0",
-                    isActive ? "text-brand" : "text-zinc-400 group-hover:text-zinc-600"
-                  )}
-                />
-                <span>{item.label}</span>
-              </Link>
-            )
-          })}
-        </nav>
+        <DesktopNav pathname={pathname} />
 
         {/* User card */}
         <div className="border-t border-zinc-100 p-4">
@@ -128,7 +207,10 @@ export function Sidebar() {
               <span
                 className="w-2.5 h-2.5 rounded-full border border-zinc-200"
                 style={{
-                  background: theme === "green" ? "#ff7f11" : "#4ade80",
+                  background:
+                    theme === "green"
+                      ? "var(--theme-preview-orange)"
+                      : "var(--theme-preview-green)",
                 }}
               />
             </button>
@@ -138,23 +220,13 @@ export function Sidebar() {
 
       {/* Mobile bottom nav */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-zinc-100 flex">
-        {NAV_ITEMS.map((item) => {
-          const isActive = pathname === item.href
-          const Icon = item.icon
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors",
-                isActive ? "text-brand" : "text-zinc-400"
-              )}
-            >
-              <Icon className="w-5 h-5" />
-              {item.label}
-            </Link>
-          )
-        })}
+        {NAV_ITEMS.map((item) => (
+          <MobileNavItem
+            key={item.href}
+            {...item}
+            isActive={pathname === item.href}
+          />
+        ))}
       </nav>
     </>
   )
@@ -169,20 +241,8 @@ function TennisBallIcon({ className }: { className?: string }) {
       xmlns="http://www.w3.org/2000/svg"
     >
       <circle cx="20" cy="20" r="18" className="stroke-brand" strokeWidth="2" />
-      <path
-        d="M 7 12 Q 20 4 33 12"
-        className="stroke-brand"
-        strokeWidth="1.5"
-        fill="none"
-        strokeLinecap="round"
-      />
-      <path
-        d="M 7 28 Q 20 36 33 28"
-        className="stroke-brand"
-        strokeWidth="1.5"
-        fill="none"
-        strokeLinecap="round"
-      />
+      <path d="M 7 12 Q 20 4 33 12" className="stroke-brand" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      <path d="M 7 28 Q 20 36 33 28" className="stroke-brand" strokeWidth="1.5" fill="none" strokeLinecap="round" />
     </svg>
   )
 }
