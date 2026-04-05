@@ -32,7 +32,7 @@ export function LoginPageContent() {
       <AuthBrandPanel />
 
       <div className="flex flex-1 items-center justify-center bg-white px-6 py-12 lg:px-16">
-        <div className="w-full max-w-[360px]">
+        <div className="w-full max-w-90">
 
           <div className="flex items-center gap-2.5 mb-10 lg:hidden">
             <MobileLogo />

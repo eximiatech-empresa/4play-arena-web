@@ -34,7 +34,7 @@ export function AuthBrandPanel() {
             horas de tênis<br />
             com precisão.
           </h2>
-          <p className="mt-5 text-white/50 text-sm leading-relaxed max-w-[260px]">
+          <p className="mt-5 text-white/50 text-sm leading-relaxed max-w-65">
             Controle sua carteira de horas, acompanhe seu desenvolvimento e reserve aulas com facilidade.
           </p>
 

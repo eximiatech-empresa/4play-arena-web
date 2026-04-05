@@ -1,4 +1,9 @@
 import { getProfessorById, PEAK_WINDOW, type Plan } from "@/core/constants/professors"
+import { CheckInStatus } from "../entities/lesson"
+
+const CLOSED = 0;
+const OPENTOALL = 6;
+const ENROLLEDONLY = 24;
 
 const OFF_PEAK_MULTIPLIER = 0.95
 
@@ -64,12 +69,12 @@ export function getCheckInStatus(
   classDateTime: Date,
   isEnrolled: boolean,
   now = new Date()
-): "not_open" | "enrolled_only" | "open" | "closed" {
+): CheckInStatus {
   const msToClass = classDateTime.getTime() - now.getTime()
   const hoursToClass = msToClass / (1000 * 60 * 60)
 
-  if (hoursToClass < 0) return "closed"
-  if (hoursToClass <= 6) return "open"
-  if (hoursToClass <= 24 && isEnrolled) return "enrolled_only"
+  if (hoursToClass < CLOSED) return "closed"
+  if (hoursToClass <= OPENTOALL) return "open"
+  if (hoursToClass <= ENROLLEDONLY && isEnrolled) return "enrolled_only"
   return "not_open"
 }

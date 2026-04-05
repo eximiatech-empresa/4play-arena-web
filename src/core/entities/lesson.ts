@@ -32,5 +32,6 @@ export const ProfessorSchema = z.object({
   isPremium: z.boolean(),
 })
 
+export type CheckinStatus = z.infer<typeof CheckInStatusSchema>
 export type Lesson = z.infer<typeof LessonSchema>
 export type CheckInStatus = z.infer<typeof CheckInStatusSchema>

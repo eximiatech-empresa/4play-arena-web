@@ -108,7 +108,7 @@ export function LessonsPageContent() {
         </div>
 
         <div className="flex flex-wrap gap-3">
-          <div className="flex-1 min-w-[140px]">
+          <div className="flex-1 min-w-35">
             <label className="block text-[11px] font-medium text-zinc-400 mb-1.5">
               Professor
             </label>
@@ -127,7 +127,7 @@ export function LessonsPageContent() {
             </select>
           </div>
 
-          <div className="flex-1 min-w-[140px]">
+          <div className="flex-1 min-w-35">
             <label className="block text-[11px] font-medium text-zinc-400 mb-1.5">
               Nível
             </label>
