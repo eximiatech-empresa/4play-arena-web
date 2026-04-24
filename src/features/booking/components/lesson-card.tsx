@@ -106,12 +106,12 @@ export function LessonCard({
         </div>
         <div className="flex items-center gap-3 text-xs text-zinc-400">
           <span className="flex items-center gap-1">
-            <MapPin className="w-3 h-3" />
+            <MapPin className="w-3 h-3 text-brand" />
             {lesson.court}
           </span>
           <span className="flex items-center gap-1">
-            <Users className="w-3 h-3" />
-            {spotsLeft > 0 ? `${spotsLeft} vaga${spotsLeft > 1 ? "s" : ""}` : "Lotada"}
+            <Users className="w-3 h-3 text-brand" />
+            {spotsLeft > 0 ? `${spotsLeft} vaga${spotsLeft > 1 ? "s restantes" : " restante"}` : "Lotada"}
           </span>
         </div>
 

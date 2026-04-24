@@ -4,8 +4,7 @@ import { CheckInStatus } from "../entities/lesson"
 const CLOSED = 0;
 const OPENTOALL = 6;
 const ENROLLEDONLY = 24;
-
-const OFF_PEAK_MULTIPLIER = 0.95
+const OFF_PEAK_MULTIPLIER = 0.95;
 
 /**
  * Returns true if the given date/time falls outside peak hours (18:00–20:00).
