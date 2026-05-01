@@ -1,17 +1,21 @@
 "use client"
-
+import { useState } from "react"
 import { MapPin, Users, Loader2, CheckCircle2, Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Lesson } from "@/core/entities/lesson"
 import { LevelBadge } from "@/components/shared/level-badge"
 import { Button } from "@/components/ui/button"
-import { useCheckIn } from "@/features/booking/hooks/use-lessons"
+import { useCheckIn, useCancelCheckIn } from "@/features/booking/hooks/use-lessons"
+import { toast } from "sonner"
+import { CancelConfirmationModal } from "../../features/booking/components/cancel-confirmation-modal"
+import { canCancelCheckIn } from "@/core/math/consumption"
 
 interface LessonCardProps {
   lesson: Lesson
-  studentLevelIndex: number
-  walletBalance: number
-  onClick?: () => void
+  studentLevelIndex?: number
+  walletBalance?: number
+  onClick?: (lesson : Lesson) => void
+  isTeacherView?: boolean
 }
 
 const CHECK_IN_LABELS: Record<string, string> = {
@@ -27,13 +31,43 @@ export function LessonCard({
   studentLevelIndex,
   walletBalance,
   onClick,
+  isTeacherView = false
 }: LessonCardProps) {
   const checkIn = useCheckIn()
+  const cancelCheckIn = useCancelCheckIn() 
+  const [showCancelModal, setShowCancelModal] = useState(false)
+
+  function handleCancelClick() {
+    const isValidForRefund = canCancelCheckIn(new Date(lesson.dateTime))
+    if (isValidForRefund) {
+       // Se tem direito ao reembolso, cancela direto sem frescura
+       executeCancel()
+    } else {
+       // Se já passou do tempo de T-4h, avisa ele antes de cancelar
+       setShowCancelModal(true)
+    }
+  }
+
+  function executeCancel() {
+    cancelCheckIn.mutate(lesson, {
+      onSuccess: (data) => {
+        setShowCancelModal(false)
+        if (data.refunded) {
+          toast.success("Check-in cancelado! Os Play's foram reembolsados para sua carteira.")
+        } else {
+          toast.warning("Inscrição cancelada (sem reembolso devido ao prazo de 4h).")
+        }
+      },
+      onError: (err: Error) => {
+        toast.error("Erro ao cancelar: " + err.message)
+      }
+    })
+  }
 
   const spotsLeft = lesson.totalSpots - lesson.enrolledCount
   const hasSpot = spotsLeft > 0 || lesson.isEnrolled
-  const isLevelBlocked = studentLevelIndex < lesson.levelIndex
-  const hasBalance = walletBalance >= lesson.previewConsumption
+  const isLevelBlocked = (studentLevelIndex ?? 0) < lesson.levelIndex
+  const hasBalance = (walletBalance ?? 0) >= lesson.previewConsumption
   const isDone = lesson.checkInStatus === "done"
   const isActionable =
     !isLevelBlocked &&
@@ -57,14 +91,14 @@ export function LessonCard({
   const statusColor = isDone
     ? "border-brand/30 bg-brand-subtle"
     : lesson.checkInStatus === "open"
-    ? "border-brand/20"
-    : "border-zinc-100"
+      ? "border-brand/50"
+      : "border-brand/50"
 
   return (
     <div
-      onClick={onClick}
+      onClick={() => onClick?.(lesson)}
       className={cn(
-        "bg-white rounded-2xl border shadow-sm overflow-hidden flex flex-col",
+        "bg-card border rounded-2xl shadow-sm overflow-hidden flex flex-col",
         onClick && "cursor-pointer hover:shadow-md transition-shadow",
         statusColor
       )}
@@ -72,13 +106,13 @@ export function LessonCard({
       {/* Header */}
       <div className="px-4 pt-4 flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-brand-dark flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-chart-3 flex items-center justify-center shrink-0 ">
             <span className="text-xs font-bold text-white">
               {lesson.professorName.charAt(0)}
             </span>
           </div>
           <div>
-            <p className="text-sm font-semibold text-zinc-800">
+            <p className="text-sm font-semibold text-foreground">
               {lesson.professorName}
             </p>
             <div className="flex items-center gap-1 mt-0.5">
@@ -88,7 +122,7 @@ export function LessonCard({
         </div>
 
         {lesson.checkInStatus === "open" && !isDone && (
-          <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide bg-brand text-white rounded-full px-2 py-0.5">
+          <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide bg-brand rounded-full px-2 py-0.5 text-white">
             Mar Aberto
           </span>
         )}
@@ -99,12 +133,12 @@ export function LessonCard({
 
       {/* Details */}
       <div className="px-4 py-3 flex-1 space-y-1.5">
-        <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-          <span className="font-medium text-zinc-700">
+        <div className="flex items-center gap-1.5 text-xs">
+          <span className="font-medium text-foreground/60">
             {formattedDate} · {formattedTime}
           </span>
         </div>
-        <div className="flex items-center gap-3 text-xs text-zinc-400">
+        <div className="flex items-center gap-3 text-xs text-foreground/90">
           <span className="flex items-center gap-1">
             <MapPin className="w-3 h-3 text-brand" />
             {lesson.court}
@@ -119,7 +153,7 @@ export function LessonCard({
           <span
             className={cn(
               "text-sm font-bold tabular-nums",
-              lesson.isOffPeak ? "text-brand" : "text-zinc-700"
+              lesson.isOffPeak ? "text-brand" : "text-foreground"
             )}
           >
             -{lesson.previewConsumption.toFixed(2)}h
@@ -134,7 +168,15 @@ export function LessonCard({
 
       {/* Action area */}
       <div className="px-4 pb-4" onClick={(e) => e.stopPropagation()}>
-        {isLevelBlocked ? (
+        {isTeacherView ? (
+          // VISÃO DO PROFESSOR
+          <Button
+            onClick={() => onClick && onClick(lesson)}
+            className="w-full h-8 text-xs font-semibold bg-chart-3 hover:bg-chart-4 text-white transition-colors"
+          >
+            Gerenciar Aula
+          </Button>
+        ) : isLevelBlocked ? (
           <div className="flex items-center gap-1.5 text-xs text-zinc-400 justify-center py-1.5">
             <Lock className="w-3 h-3" />
             Nível insuficiente
@@ -144,18 +186,41 @@ export function LessonCard({
             Saldo insuficiente
           </div>
         ) : isDone ? (
-          <div className="flex items-center gap-1.5 justify-center text-xs text-brand font-semibold py-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Check-in confirmado
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-1.5 justify-center text-xs text-brand font-semibold py-1">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Check-in confirmado
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleCancelClick} // <-- CHAMA A FUNÇÃO INTELIGENTE AQUI
+              disabled={cancelCheckIn.isPending}
+              className="w-full h-7 text-[10px] text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600"
+            >
+              {cancelCheckIn.isPending && !showCancelModal ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                "Cancelar Inscrição"
+              )}
+            </Button>
+
+            {/* Injeta o Modal no DOM */}
+            <CancelConfirmationModal
+              open={showCancelModal}
+              onOpenChange={setShowCancelModal}
+              onConfirm={executeCancel}
+              isPending={cancelCheckIn.isPending}
+            />
           </div>
         ) : (
           <Button
-            onClick={() => checkIn.mutate(lesson.id)}
+            // PASSAMOS O OBJETO 'lesson' INTEIRO AGORA!
+            onClick={() => checkIn.mutate(lesson)}
             disabled={!isActionable || checkIn.isPending}
             className={cn(
               "w-full h-8 text-xs font-semibold transition-colors",
               isActionable
-                ? "bg-brand hover:bg-brand-dark text-white"
+                ? "bg-chart-3 hover:bg-chart-4 text-white"
                 : "bg-zinc-100 text-zinc-400 cursor-not-allowed"
             )}
           >

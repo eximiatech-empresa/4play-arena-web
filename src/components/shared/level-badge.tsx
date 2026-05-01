@@ -15,6 +15,8 @@ const LEVEL_COLORS: Record<string, string> = {
   "Nível B": "bg-brand-subtle text-brand-dark border-brand/30",
   "Nível A": "bg-amber-50 text-amber-700 border-amber-200",
   Profissional: "bg-violet-50 text-violet-700 border-violet-200",
+  Professor: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-700/30",
+  Admin: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-700/30",
 }
 
 const SIZE_CLASSES = {
@@ -24,18 +26,24 @@ const SIZE_CLASSES = {
 }
 
 export function LevelBadge({ level, size = "sm", className }: LevelBadgeProps) {
-  const colors = LEVEL_COLORS[level] ?? "bg-zinc-100 text-zinc-600 border-zinc-200"
+  // 1. Interceptamos o valor. Se for só A, B, C ou D, adicionamos o "Nível "
+  const displayLevel = ["A", "B", "C", "D"].includes(level) 
+    ? `Nível ${level}` 
+    : level
+
+  // 2. Agora ele busca a cor usando o nome formatado corretamente
+  const colors = LEVEL_COLORS[displayLevel] ?? "bg-zinc-100 text-zinc-600 border-zinc-200"
 
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full border uppercase",
+        "inline-flex items-center rounded-full border uppercase whitespace-nowrap",
         colors,
         SIZE_CLASSES[size],
         className
       )}
     >
-      {level}
+      {displayLevel}
     </span>
   )
 }

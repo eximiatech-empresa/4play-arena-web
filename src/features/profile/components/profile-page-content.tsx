@@ -75,8 +75,8 @@ export function ProfilePageContent() {
         />
         <StatCard
           icon={<TrendingDown className="w-4 h-4 text-zinc-400" />}
-          label="Horas"
-          value={`${student.totalHoursConsumed}h`}
+          label="Plays"
+          value={`${student.totalPlaysConsumed} Plays`}
         />
       </div>
 

@@ -1,38 +1,71 @@
 "use client"
 
 import { useEffect, useRef } from "react"
+import { useTheme } from "next-themes"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   LayoutDashboard,
   CreditCard,
   CalendarCheck,
   UserCircle,
   LogOut,
-  Palette,
+  ClipboardList,
+  Users,
+  Moon,
+  Sun,
   type LucideIcon,
 } from "lucide-react"
 import gsap from "gsap"
 import { cn } from "@/lib/utils"
-import { MOCK_STUDENT } from "@/features/profile/mock-data"
 import { LevelBadge } from "@/components/shared/level-badge"
-import { useBrandTheme } from "@/hooks/use-brand-theme"
+import { authService } from "@/lib/auth"
+import { useCurrentUser } from "@/hooks/use-current-user"
 
-const NAV_ITEMS = [
-  { label: "Visão Geral", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Carteira",    href: "/carteira",  icon: CreditCard },
-  { label: "Aulas",       href: "/aulas",     icon: CalendarCheck },
-  { label: "Perfil",      href: "/perfil",    icon: UserCircle },
+// ─── Lógica de Permissões (RBAC) ──────────────────────────────────────────
+
+type Role = "STUDENT" | "TEACHER" | "ADMIN"
+
+interface NavItemConfig {
+  label: string
+  href: string
+  icon: LucideIcon
+  roles?: Role[]
+}
+
+const MENU_CONFIG: NavItemConfig[] = [
+  { label: "Visão Geral", href: "/dashboard", roles: ["STUDENT"],  icon: LayoutDashboard },
+  { label: "Painel Executivo", href: "/painel",    roles: ["ADMIN"],  icon: LayoutDashboard },
+  { label: "Carteira", href: "/carteira", icon: CreditCard, roles: ["STUDENT", "ADMIN"] },
+  { label: "Carteira", href: "/carteira-professor", icon: CreditCard, roles: ["TEACHER"] },
+  { label: "Aulas", href: "/aulas", icon: CalendarCheck, roles: ["STUDENT", "TEACHER", "ADMIN"] },
+  { label: "Gestão", href: "/class-management", icon: ClipboardList, roles: ["TEACHER", "ADMIN"] },
+  { label: "Usuários", href: "/users-management", icon: Users, roles: ["ADMIN"] },
+  { label: "Perfil", href: "/perfil", icon: UserCircle },
 ]
+
+function getNavItemsForRole(userRole?: string): NavItemConfig[] {
+  return MENU_CONFIG.filter((item) => {
+    if (!item.roles || item.roles.length === 0) return true
+    if (!userRole) return false
+    return item.roles.includes(userRole as Role)
+  })
+}
 
 // ─── Desktop nav with sliding indicator ──────────────────────────────────────
 
-function DesktopNav({ pathname }: { pathname: string }) {
+interface DesktopNavProps {
+  pathname: string
+  items: NavItemConfig[]
+}
+
+function DesktopNav({ pathname, items }: DesktopNavProps) {
   const itemRefs = useRef<(HTMLAnchorElement | null)[]>([])
   const indicatorRef = useRef<HTMLDivElement>(null)
   const prevIndexRef = useRef<number>(-1)
 
-  const activeIndex = NAV_ITEMS.findIndex((item) => item.href === pathname)
+  const activeIndex = items.findIndex((item) => item.href === pathname)
 
   useEffect(() => {
     const indicator = indicatorRef.current
@@ -40,7 +73,6 @@ function DesktopNav({ pathname }: { pathname: string }) {
     const activeEl = itemRefs.current[activeIndex]
     if (!indicator || !activeEl || !nav) return
 
-    // getBoundingClientRect is robust regardless of intermediate positioned ancestors
     const navRect = nav.getBoundingClientRect()
     const activeRect = activeEl.getBoundingClientRect()
     const activeTop = activeRect.top - navRect.top + nav.scrollTop
@@ -48,7 +80,6 @@ function DesktopNav({ pathname }: { pathname: string }) {
     const prevIndex = prevIndexRef.current
 
     if (prevIndex === -1) {
-      // First mount: snap into position without animation
       gsap.set(indicator, { top: activeTop, height: activeRect.height, opacity: 1 })
     } else {
       const prevEl = itemRefs.current[prevIndex]
@@ -58,39 +89,40 @@ function DesktopNav({ pathname }: { pathname: string }) {
         gsap.fromTo(
           indicator,
           { top: prevTop, height: prevRect.height },
-          { top: activeTop, height: activeRect.height, duration: 0.35, ease: "power2.inOut" }
+          { top: activeTop, height: activeRect.height, duration: 0.35, ease: "power2.inOut" },
         )
       }
     }
 
     prevIndexRef.current = activeIndex
-  }, [activeIndex])
+  }, [activeIndex, items])
 
   return (
     <nav className="flex-1 px-3 py-4 relative">
-      {/* Sliding background indicator */}
       <div
         ref={indicatorRef}
         className="absolute left-3 right-3 bg-brand-subtle rounded-lg pointer-events-none opacity-0"
       />
 
-      {NAV_ITEMS.map((item, i) => {
+      {items.map((item, i) => {
         const isActive = activeIndex === i
         const Icon = item.icon
         return (
           <Link
             key={item.href}
             href={item.href}
-            ref={(el) => { itemRefs.current[i] = el }}
+            ref={(el) => {
+              itemRefs.current[i] = el
+            }}
             className={cn(
               "relative flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors group",
-              isActive ? "text-brand-dark" : "text-zinc-500 hover:text-zinc-800"
+              isActive ? "text-brand-dark" : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100",
             )}
           >
             <Icon
               className={cn(
                 "w-4 h-4 shrink-0 transition-colors",
-                isActive ? "text-brand" : "text-zinc-400 group-hover:text-zinc-600"
+                isActive ? "text-brand" : "text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-600 dark:group-hover:text-zinc-300",
               )}
             />
             <span>{item.label}</span>
@@ -119,7 +151,7 @@ function MobileNavItem({ href, label, icon: Icon, isActive }: MobileNavItemProps
       gsap.fromTo(
         iconRef.current,
         { scale: 0.5, rotate: -15 },
-        { scale: 1, rotate: 0, duration: 0.45, ease: "back.out(2.5)" }
+        { scale: 1, rotate: 0, duration: 0.45, ease: "back.out(2.5)" },
       )
     }
     prevActive.current = isActive
@@ -130,7 +162,7 @@ function MobileNavItem({ href, label, icon: Icon, isActive }: MobileNavItemProps
       href={href}
       className={cn(
         "flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors",
-        isActive ? "text-brand" : "text-zinc-400"
+        isActive ? "text-brand" : "text-zinc-400 dark:text-zinc-500",
       )}
     >
       <span ref={iconRef} className="flex items-center justify-center">
@@ -141,91 +173,104 @@ function MobileNavItem({ href, label, icon: Icon, isActive }: MobileNavItemProps
   )
 }
 
-// ─── Sidebar ─────────────────────────────────────────────────────────────────
+// ─── Sidebar user card ────────────────────────────────────────────────────────
+
+import type { User } from "@/core/entities/user"
+
+function SidebarUserCard({ user }: { user: User | null | undefined }) {
+  const name = user?.name ?? "Usuário"
+  const initials = name
+    .split(" ")
+    .slice(0, 2)
+    .map((n: string) => n[0])
+    .join("")
+    .toUpperCase()
+
+  // Exibe a role ou o nível
+  let badgeText = "Iniciante"
+  if (user?.role === "ADMIN") {
+    badgeText = "Admin"
+  } else if (user?.role === "TEACHER") {
+    badgeText = "Professor"
+  } else if (user?.role === "STUDENT") {
+    badgeText = user.level || "Iniciante"
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="w-8 h-8 rounded-full bg-brand-dark flex items-center justify-center shrink-0">
+        <span className="text-xs font-bold text-white">{initials}</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold text-zinc-800 dark:text-zinc-100 ">{name}</p>
+        <LevelBadge level={badgeText} size="xs" className="mt-0.5" />
+      </div>
+    </div>
+  )
+}
+
+// ─── Sidebar Principal ───────────────────────────────────────────────────────
 
 export function Sidebar() {
   const pathname = usePathname()
-  const router = useRouter()
-  const { theme, toggle } = useBrandTheme()
+  // const router = useRouter()
+  const { data: user } = useCurrentUser()
+  const { resolvedTheme, setTheme } = useTheme()
+  const queryClient = useQueryClient()
+  const isDark = resolvedTheme === "dark"
+  // const toggleTheme = () => setTheme(isDark ? "light" : "dark")
 
-  function handleLogout() {
-    router.push("/login")
+  const navItems = getNavItemsForRole(user?.role)
+
+  async function handleLogout() {
+    await authService.signOut()
+    
+    // 1. Limpa todo o cache do TanStack Query da memória
+    queryClient.clear() 
+    
+    // 2. Força o navegador a destruir a árvore do React e recarregar a página no login
+    window.location.href = "/login" 
   }
-
-  const initials = MOCK_STUDENT.name
-    .split(" ")
-    .slice(0, 2)
-    .map((n) => n[0])
-    .join("")
 
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-[220px] shrink-0 flex-col bg-white border-r border-zinc-100 h-screen">
-        {/* Logo */}
-        <div className="flex items-center gap-2.5 px-5 py-5 border-b border-zinc-100">
+      <aside className="hidden lg:flex w-55 shrink-0 flex-col bg-card border-r border-border h-screen">
+        <div className="flex items-center gap-2.5 px-5 py-5 border-b border-border">
           <TennisBallIcon className="w-7 h-7 shrink-0" />
           <div className="leading-tight">
-            <p className="text-[9px] font-bold tracking-[0.22em] uppercase text-zinc-400">
-              4 Play
-            </p>
-            <p className="text-base font-bold tracking-tight text-brand-dark leading-none">
-              Arena
-            </p>
+            <p className="text-[9px] font-bold tracking-[0.22em] uppercase text-zinc-400">4 Play</p>
+            <p className="text-base font-bold tracking-tight text-brand-dark leading-none">Arena</p>
           </div>
         </div>
 
-        <DesktopNav pathname={pathname} />
+        <DesktopNav pathname={pathname} items={navItems} />
 
-        {/* User card */}
-        <div className="border-t border-zinc-100 p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-brand-dark flex items-center justify-center shrink-0">
-              <span className="text-xs font-bold text-white">{initials}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-zinc-800 truncate">
-                {MOCK_STUDENT.name}
-              </p>
-              <LevelBadge level={MOCK_STUDENT.level} size="xs" className="mt-0.5" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center justify-between">
+        <div className="border-t border-border p-4">
+          <SidebarUserCard user={user} />
+          <div className="mt-3 flex items-center justify-between w-full">
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
+              className="flex items-center gap-1.5 text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors"
             >
               <LogOut className="w-3 h-3" />
               Sair
             </button>
-            <button
-              onClick={toggle}
-              title={theme === "green" ? "Mudar para laranja" : "Mudar para verde"}
-              className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
+            {/* <button
+              onClick={toggleTheme}
+              title={isDark ? "Modo claro" : "Modo escuro"}
+              className="p-1.5 rounded-md text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
             >
-              <Palette className="w-3 h-3" />
-              <span
-                className="w-2.5 h-2.5 rounded-full border border-zinc-200"
-                style={{
-                  background:
-                    theme === "green"
-                      ? "var(--theme-preview-orange)"
-                      : "var(--theme-preview-green)",
-                }}
-              />
-            </button>
+              {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            </button> */}
           </div>
         </div>
       </aside>
 
       {/* Mobile bottom nav */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-zinc-100 flex">
-        {NAV_ITEMS.map((item) => (
-          <MobileNavItem
-            key={item.href}
-            {...item}
-            isActive={pathname === item.href}
-          />
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border flex">
+        {navItems.map((item) => (
+          <MobileNavItem key={item.href} {...item} isActive={pathname === item.href} />
         ))}
       </nav>
     </>
@@ -234,15 +279,22 @@ export function Sidebar() {
 
 function TennisBallIcon({ className }: { className?: string }) {
   return (
-    <svg
-      className={className}
-      viewBox="0 0 40 40"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg className={className} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="20" cy="20" r="18" className="stroke-brand" strokeWidth="2" />
-      <path d="M 7 12 Q 20 4 33 12" className="stroke-brand" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-      <path d="M 7 28 Q 20 36 33 28" className="stroke-brand" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      <path
+        d="M 7 12 Q 20 4 33 12"
+        className="stroke-brand"
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+      />
+      <path
+        d="M 7 28 Q 20 36 33 28"
+        className="stroke-brand"
+        strokeWidth="1.5"
+        fill="none"
+        strokeLinecap="round"
+      />
     </svg>
   )
 }

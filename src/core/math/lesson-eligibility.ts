@@ -1,3 +1,4 @@
+import { STUDENT_LEVELS } from "@/core/constants/professors"
 import type { Lesson } from "@/core/entities/lesson"
 
 export interface LessonEligibility {
@@ -7,6 +8,22 @@ export interface LessonEligibility {
   hasBalance: boolean
   isDone: boolean
   isActionable: boolean
+}
+
+export function formatStudentLevel(rawLevel: string | undefined): { formattedCurrentLevel: string, computedLevelIndex: number, studentLevelIndex: number } {
+  const level = rawLevel || "Iniciante"
+  const formattedCurrentLevel = ["A", "B", "C", "D"].includes(level)
+    ? `Nível ${level}`
+    : level
+
+  const computedLevelIndex = STUDENT_LEVELS.indexOf(formattedCurrentLevel as typeof STUDENT_LEVELS[number])
+  const studentLevelIndex = computedLevelIndex !== -1 ? computedLevelIndex : 0
+
+  return {
+    formattedCurrentLevel,
+    computedLevelIndex,
+    studentLevelIndex
+  }
 }
 
 /**

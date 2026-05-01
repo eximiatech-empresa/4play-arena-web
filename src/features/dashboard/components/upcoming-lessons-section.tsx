@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { LessonCard } from "@/features/booking/components/lesson-card"
+import { LessonCard } from "@/components/shared/lesson-card"
 import { LessonDetailsModal } from "@/features/booking/components/lesson-details-modal"
 import type { Lesson } from "@/core/entities/lesson"
 

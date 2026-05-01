@@ -10,5 +10,5 @@ export const MOCK_STUDENT: Student = {
   levelIndex: STUDENT_LEVELS.indexOf("Nível B"),
   memberSince: "2025-09-01",
   totalClassesTaken: 34,
-  totalHoursConsumed: 31.4,
+  totalPlaysConsumed: 31.4,
 }

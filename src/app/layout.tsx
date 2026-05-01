@@ -1,10 +1,9 @@
 import type { Metadata } from "next"
-import { Geist, Geist_Mono, Inter } from "next/font/google"
+import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { cn } from "@/lib/utils"
 import { Providers } from "@/components/providers"
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
+import { Toaster } from "sonner" 
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,25 +28,23 @@ export default function RootLayout({
   return (
     <html
       lang="pt-BR"
-
+      suppressHydrationWarning
       className={cn(
-        // NOTE: theme-orange class is applied by the inline script below (FOUT prevention)
         "h-full antialiased",
         geistSans.variable,
         geistMono.variable,
-        inter.variable,
         "font-sans"
       )}
     >
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `try{if(localStorage.getItem('4play-brand-theme')==='orange')document.documentElement.classList.add('theme-orange')}catch(e){}`,
-          }}
-        />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Sansation:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700&display=swap" rel="stylesheet" />
       </head>
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col bg-background text-foreground">
         <Providers>{children}</Providers>
+
+        <Toaster richColors position="top-center" />
       </body>
     </html>
   )

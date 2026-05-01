@@ -40,7 +40,6 @@ export interface GetUserResponse {
   error: AuthError | null
 }
 
-/** Contract that both mock and Supabase adapter must satisfy */
 export interface IAuthService {
   signInWithPassword(params: {
     email: string

@@ -102,7 +102,7 @@ export function LoginPageContent() {
             <Button
               type="submit"
               disabled={isPending}
-              className="w-full h-11 bg-brand hover:bg-brand-dark text-brand-foreground font-medium transition-colors"
+              className="w-full h-11 bg-chart-4 hover:bg-chart-5 text-brand-subtle font-medium transition-colors"
             >
               {isPending ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Entrando...</>

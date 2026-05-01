@@ -1,6 +1,6 @@
 export function AuthBrandPanel() {
   return (
-    <div className="hidden lg:flex lg:w-[42%] flex-col bg-brand-dark text-white relative overflow-hidden select-none">
+    <div className="hidden lg:flex lg:w-[42%] flex-col bg-chart-5 text-white relative overflow-hidden select-none">
       {/* Tennis court lines — overhead view, decorative background */}
       <div className="absolute inset-0 flex items-center justify-center opacity-[0.07]">
         <TennisCourtSVG />

@@ -1,16 +1,17 @@
+// src/features/wallet/utils/wallet-metrics.ts
 import type { Transaction } from "@/core/entities/wallet"
 
 export interface WalletMetrics {
-  hoursUsedThisMonth: number
+  playsUsedThisMonth: number
   lessonsThisMonth: number
   totalLessonsAttended: number
-  usedHours: number
+  usedPlays: number
 }
 
 export function computeWalletMetrics(
   transactions: Transaction[],
   balance: number,
-  totalHours: number,
+  totalPlays: number,
   referenceDate: Date = new Date()
 ): WalletMetrics {
   const currentMonth = referenceDate.getMonth()
@@ -23,10 +24,10 @@ export function computeWalletMetrics(
   })
 
   return {
-    hoursUsedThisMonth: monthDebits.reduce((sum, tx) => sum + Math.abs(tx.hours), 0),
+    playsUsedThisMonth: monthDebits.reduce((sum, tx) => sum + Math.abs(tx.amount), 0),
     lessonsThisMonth: monthDebits.length,
     totalLessonsAttended: transactions.filter((tx) => tx.type === "debit").length,
-    usedHours: totalHours - balance,
+    usedPlays: totalPlays - balance,
   }
 }
 

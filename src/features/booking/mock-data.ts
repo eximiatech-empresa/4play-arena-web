@@ -3,7 +3,7 @@ import type { Lesson } from "@/core/entities/lesson"
 
 /**
  * Mock upcoming lessons.
- * Dates are relative to a "current" date around 2026-04-04.
+ * Dates are relative to a "current" date around 2026-05-05.
  * previewConsumption is pre-calculated for a "Mensal" plan student.
  *
  * TODO (Supabase): Replace with real-time queries.
@@ -18,13 +18,13 @@ export const MOCK_LESSONS: Lesson[] = [
     professorName: "Paulinho",
     level: "Nível B",
     levelIndex: 4,
-    dateTime: "2026-04-04T09:00:00.000Z",
+    dateTime: "2026-05-01T20:00:00.000Z",
     court: "Quadra 2",
     totalSpots: 4,
     enrolledCount: 3,
     isEnrolled: true,
     checkInStatus: "enrolled_only",
-    previewConsumption: 0.86, // 0.90 * 0.95 = 0.855 -> round = 0.86h (off-peak)
+    previewConsumption: 0.86, 
     isOffPeak: true,
     description: "Treino técnico com foco em fundamentos de backhand e posicionamento de quadra. Indicado para alunos que já dominam o forehand e querem equilibrar os dois lados.",
   },
@@ -34,7 +34,7 @@ export const MOCK_LESSONS: Lesson[] = [
     professorName: "Marília",
     level: "Nível A",
     levelIndex: 5,
-    dateTime: "2026-04-04T19:00:00.000Z",
+    dateTime: "2026-05-01T23:00:00.000Z",
     court: "Quadra 1",
     totalSpots: 4,
     enrolledCount: 2,
@@ -55,7 +55,7 @@ export const MOCK_LESSONS: Lesson[] = [
     totalSpots: 4,
     enrolledCount: 1,
     isEnrolled: false,
-    checkInStatus: "not_open",
+    checkInStatus: "open",
     previewConsumption: 1.0, // 1.05 * 0.95 = 0.9975 -> round = 1.00h (off-peak)
     isOffPeak: true,
     description: "Treino polivalente com Biel para alunos de Nível C. Trabalho de consistência em rallies longos e introdução a bolas cortadas.",
@@ -71,7 +71,7 @@ export const MOCK_LESSONS: Lesson[] = [
     totalSpots: 4,
     enrolledCount: 4,
     isEnrolled: true,
-    checkInStatus: "not_open",
+    checkInStatus: "open",
     previewConsumption: 1.1, // 1.10h peak, no discount
     isOffPeak: false,
     description: "Jogo tático com o Pepe — sessão de simulação de pontos e estratégia de jogo em duplas. Turma fechada, todos os alunos já inscritos.",
@@ -134,6 +134,37 @@ export const MOCK_LESSONS: Lesson[] = [
     isEnrolled: false,
     checkInStatus: "not_open",
     previewConsumption: 1.1, // peak
+    isOffPeak: false,
+  },
+  // ─── Tomorrow (2026-05-02) — feeds the Operational Radar ─────────────────
+  {
+    id: "lesson-9",
+    professorId: "pepe",
+    professorName: "Pepe",
+    level: "Nível C",
+    levelIndex: 3,
+    dateTime: "2026-05-02T12:00:00.000Z", // 09:00 BRT — ghost (0 enrolled)
+    court: "Quadra 3",
+    totalSpots: 4,
+    enrolledCount: 0,
+    isEnrolled: false,
+    checkInStatus: "not_open",
+    previewConsumption: 1.0,
+    isOffPeak: true,
+  },
+  {
+    id: "lesson-10",
+    professorId: "marilia",
+    professorName: "Marília",
+    level: "Nível A",
+    levelIndex: 5,
+    dateTime: "2026-05-02T21:00:00.000Z", // 18:00 BRT — full (4/4)
+    court: "Quadra 1",
+    totalSpots: 4,
+    enrolledCount: 4,
+    isEnrolled: false,
+    checkInStatus: "not_open",
+    previewConsumption: 1.5,
     isOffPeak: false,
   },
 ]

@@ -157,7 +157,7 @@ export function LessonDetailsModal({
         showClose={false}
         aria-describedby={undefined}
       >
-        <div ref={contentRef} className="relative bg-white rounded-2xl overflow-hidden shadow-lg border border-border">
+        <div ref={contentRef} className="relative bg-card rounded-2xl overflow-hidden shadow-lg border border-border">
           <DialogClose className="absolute right-3 top-3 z-10 rounded-full w-7 h-7 flex items-center justify-center bg-white/10 text-white hover:bg-white/20 transition-colors cursor-pointer">
             <X className="w-4 h-4" />
             <span className="sr-only">Fechar</span>
@@ -218,7 +218,7 @@ export function LessonDetailsModal({
                 <span>{displayLesson.enrolledCount} inscritos</span>
                 <span>{displayLesson.totalSpots} vagas totais</span>
               </div>
-              <div className="h-1.5 rounded-full bg-zinc-100 overflow-hidden">
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                 <div
                   className={cn(
                     "h-full rounded-full transition-all",
@@ -243,7 +243,7 @@ export function LessonDetailsModal({
 
             {/* Check-in timing info */}
             {displayLesson.checkInStatus === "not_open" && (
-              <div className="flex items-start gap-2 bg-zinc-50 rounded-xl p-3 text-xs text-zinc-500">
+              <div className="flex items-start gap-2 bg-muted rounded-xl p-3 text-xs text-muted-foreground">
                 <Zap className="w-3.5 h-3.5 text-zinc-400 mt-0.5 shrink-0" />
                 <span>
                   Check-in abre <strong>24h antes</strong> para inscritos e{" "}
@@ -260,7 +260,7 @@ export function LessonDetailsModal({
                   Check-in confirmado!
                 </div>
               ) : isLevelBlocked ? (
-                <div className="flex items-center justify-center gap-2 bg-zinc-50 rounded-xl py-3 text-zinc-400 text-sm">
+                <div className="flex items-center justify-center gap-2 bg-muted rounded-xl py-3 text-muted-foreground text-sm">
                   <Lock className="w-3.5 h-3.5" />
                   Seu nível não é suficiente para esta aula
                 </div>
@@ -269,13 +269,13 @@ export function LessonDetailsModal({
                   Saldo insuficiente — recarregue sua carteira
                 </div>
               ) : !hasSpot ? (
-                <div className="text-center bg-zinc-50 rounded-xl py-3 text-zinc-400 text-sm font-medium">
+                <div className="text-center bg-muted rounded-xl py-3 text-muted-foreground text-sm font-medium">
                   Turma lotada
                 </div>
               ) : (
                 <Button
                   onClick={() =>
-                    checkIn.mutate(displayLesson.id, {
+                    checkIn.mutate(displayLesson, {
                       onSuccess: (updated) => setLessonOverride(updated),
                     })
                   }
@@ -312,12 +312,12 @@ function InfoItem({
   children: React.ReactNode
 }) {
   return (
-    <div className="bg-zinc-50 rounded-xl p-3">
+    <div className="bg-muted rounded-xl p-3">
       <div className="flex items-center gap-1.5 text-zinc-400 mb-1">
         <Icon className="w-3 h-3 text-brand" />
         <span className="text-[10px] font-semibold uppercase tracking-wide">{label}</span>
       </div>
-      <p className="text-sm font-medium text-zinc-700 leading-snug">{children}</p>
+      <p className="text-sm font-medium text-foreground leading-snug">{children}</p>
     </div>
   )
 }
