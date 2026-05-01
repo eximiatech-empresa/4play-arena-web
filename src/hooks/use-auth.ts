@@ -13,6 +13,7 @@ export function useLogin() {
   const router = useRouter()
   const queryClient = useQueryClient()
 
+
   return useMutation({
     mutationFn: async (input: LoginInput) => {
       const result = await authService.signInWithPassword({
@@ -32,6 +33,8 @@ export function useLogin() {
       const userRef = doc(db, "users", userId)
       const userSnap = await getDoc(userRef)
 
+      let redirectRoute = "/dashboard"
+
       if (userSnap.exists()) {
         const userData = userSnap.data()
 
@@ -41,14 +44,20 @@ export function useLogin() {
           
           throw new Error("Sua conta foi desativada. Entre em contato com a administração.")
         }
+        if (userData.role === "ADMIN") {
+          redirectRoute = "/painel"
+        }
       }
 
-      return result.data
+      return { 
+        authData: result.data, 
+        route: redirectRoute 
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       // Limpa qualquer cache fantasma antigo antes de entrar
       queryClient.clear()
-      router.replace("/dashboard")
+      router.replace(data.route)
     },
   })
 }
