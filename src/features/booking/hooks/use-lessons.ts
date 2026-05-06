@@ -82,6 +82,7 @@ export function useCheckIn() {
         if (!old) return old
         return old.map((l) => (l.id === updatedLesson.id ? updatedLesson : l))
       })
+      queryClient.invalidateQueries({ queryKey: LESSONS_QUERY_KEY })
       queryClient.invalidateQueries({ queryKey: ["wallet"] })
     },
   })
@@ -111,6 +112,7 @@ export function useCancelCheckIn() {
         if (!old) return old
         return old.map((l) => (l.id === updatedLesson.id ? updatedLesson : l))
       })
+      queryClient.invalidateQueries({ queryKey: LESSONS_QUERY_KEY })
       queryClient.invalidateQueries({ queryKey: ["wallet"] })
     },
   })
