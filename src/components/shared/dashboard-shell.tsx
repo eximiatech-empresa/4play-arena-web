@@ -4,6 +4,7 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Sidebar } from "./sidebar"
 import { LoadingScreen } from "./loading-screen"
+import { NotificationsWatcher } from "./notifications-watcher"
 import { useCurrentUser } from "@/hooks/use-current-user"
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -11,16 +12,22 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (isLoading) return
+    if (!user) {
       router.replace("/login")
+      return
+    }
+    if (user.mustChangePassword) {
+      router.replace("/force-password-change")
     }
   }, [isLoading, user, router])
 
   if (isLoading) return <LoadingScreen />
-  if (!user) return null
+  if (!user || user.mustChangePassword) return null
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      <NotificationsWatcher />
       <Sidebar />
       <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
         {children}

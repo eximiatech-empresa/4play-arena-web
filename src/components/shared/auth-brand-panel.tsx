@@ -14,36 +14,32 @@ export function AuthBrandPanel() {
       {/* Main content */}
       <div className="relative z-10 flex flex-col h-full px-12 py-10">
         {/* Logo */}
-        <div className="flex items-center gap-3">
-          <TennisBallSVG className="w-10 h-10 shrink-0" />
-          <div className="leading-tight">
-            <p className="text-[10px] font-semibold tracking-[0.25em] uppercase text-white/50">
-              4 Play
-            </p>
-            <p className="text-2xl font-bold tracking-tight">Arena</p>
+        <div className="flex items-center gap-3 object-covert">
+          <div className="leading-tigh -mr-10">
           </div>
-        </div>
+          <img src="/logos/logo1.png"
+               className="w-40 md:w-52 h-auto object-contain"
+               />
+        </div>  
 
         {/* Tagline — anchored to bottom */}
         <div className="mt-auto mb-12">
-          <p className="text-[11px] font-semibold tracking-[0.2em] uppercase text-white/40 mb-4">
-            Hora Carteira
-          </p>
           <h2 className="text-[2.6rem] font-bold leading-[1.15] tracking-tight">
-            Gerencie suas<br />
-            horas de tênis<br />
+            Gerencie seus<br />
+            tokens de tênis<br />
             com precisão.
           </h2>
           <p className="mt-5 text-white/50 text-sm leading-relaxed max-w-65">
-            Controle sua carteira de horas, acompanhe seu desenvolvimento e reserve aulas com facilidade.
+            Controle sua carteira de de plays, acompanhe seu desenvolvimento e reserve aulas com facilidade.
           </p>
 
           {/* Feature pills */}
           <div className="mt-8 flex flex-col gap-2">
             {[
-              "Saldo de horas em tempo real",
+              "Saldo de 'plays' em tempo real",
               "Check-in inteligente por nível",
               "Histórico de consumo detalhado",
+              "Gerenciamento de assinatura",
             ].map((feature) => (
               <div key={feature} className="flex items-center gap-2.5">
                 <div className="w-1 h-1 rounded-full bg-white/40 shrink-0" />

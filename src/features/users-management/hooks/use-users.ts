@@ -1,7 +1,7 @@
 "use client"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getAllUsers, createUserDocument, updateUserActiveStatus } from "@/lib/firebase/firestore"
-import type { CreateUserInput } from "@/lib/firebase/firestore"
+import { getAllUsers, updateUserActiveStatus } from "@/lib/firebase/firestore"
+import { createStaffUser, type CreateStaffUserInput } from "@/app/actions/create-staff-user"
 
 const QUERY_KEY = ["users"] as const
 
@@ -18,7 +18,7 @@ export function useUsers() {
 export function useCreateUser() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: CreateUserInput) => createUserDocument(input),
+    mutationFn: (input: CreateStaffUserInput) => createStaffUser(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY })
     },

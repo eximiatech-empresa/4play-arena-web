@@ -1,24 +1,13 @@
 import { useQuery } from "@tanstack/react-query"
-import type { TeacherWallet } from "@/core/entities/teacher-wallet"
+import type { TeacherWalletResponse } from "@/core/entities/teacher-wallet"
 
 export const TEACHER_WALLET_QUERY_KEY = ["teacher-wallet"] as const
 
 export type TimeFilter = "this_week" | "this_month" | "last_month" | "this_year" | "all_time"
 
+type TeacherWalletQueryKey = readonly [string, TimeFilter]
+
 // --- MOCK DATA PARA APRESENTAÇÃO ---
-type InsightItem = { name: string; count: number }
-type TeacherWalletResponse = TeacherWallet & {
-  insights: {
-    topStudents: InsightItem[]
-    mostMissed: InsightItem[]
-    monthlyComparison: {
-      currentMonthClasses: number
-      lastMonthClasses: number
-      percentageChange: number
-    }
-    yearlyEarnings: number
-  }
-}
 
 const COMMON_INSIGHTS_BASE = {
   monthlyComparison: {
@@ -108,8 +97,12 @@ const MOCK_DATA_BY_FILTER: Record<TimeFilter, TeacherWalletResponse> = {
 }
 // -----------------------------------
 
-async function fetchTeacherWallet({ queryKey }: any): Promise<TeacherWalletResponse> {
-  const [_key, filter] = queryKey as [string, TimeFilter]
+async function fetchTeacherWallet({
+  queryKey,
+}: {
+  queryKey: TeacherWalletQueryKey
+}): Promise<TeacherWalletResponse> {
+  const [, filter] = queryKey
   // Simula um delay de rede
   await new Promise((resolve) => setTimeout(resolve, 800))
   return MOCK_DATA_BY_FILTER[filter as TimeFilter] || MOCK_DATA_BY_FILTER.this_year

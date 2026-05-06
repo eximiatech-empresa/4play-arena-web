@@ -27,14 +27,32 @@ A arquitetura existe para que o mundo 1 *nunca* contamine o mundo 2 — e vice-v
 ┌──────────────────────────▼──────────────────────────────────┐
 │                     DOMÍNIO (src/core/)                     │
 │   entities/ ←→ math/ ←→ constants/                         │
-│   Zero React. Zero Next.js. Zero Supabase.                  │
+│   Zero React. Zero Next.js. Zero Firebase.                  │
 └─────────────────────────────────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐
 │                  INFRAESTRUTURA (src/lib/)                   │
-│   Adaptadores: Supabase, Auth (mock ↔ real)                 │
+│   Adaptadores: Firebase, Auth (mock ↔ real)                 │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+
+---
+
+## 1.1 Stack Tecnológica Oficial
+
+| Tecnologia | Função | Justificativa |
+| :--- | :--- | :--- |
+| **Next.js 14+** | Framework Fullstack | Utilizado para SSR (SEO) e API Routes (Backend Seguro) no mesmo repo. |
+| **Supabase** | BaaS (DB & Auth) | Gerencia persistência PostgreSQL, Autenticação JWT e Row Level Security (RLS). |
+| **TypeScript** | Tipagem Estática | Garante que a matemática de horas não sofra erros de ponto flutuante ou tipos inválidos. |
+| **Tailwind CSS** | Estilização | Design responsivo "Mobile-First" para check-ins rápidos na quadra. |
+| **shadcn/ui** | Componentes Base | Agilidade na criação de interfaces consistentes e acessíveis. |
+| **TanStack Query** | Server State | Gerenciamento de cache do saldo de horas e sincronização de vagas em tempo real. |
+| **Zod** | Validação | Validação rigorosa dos schemas de check-in e contratos da API. |
+| **React Hook Form** | Formulários | Performance no preenchimento de cadastros e fluxos de checkout. |
+
+---
 
 **A regra de ouro da dependência:** As camadas de cima importam das de baixo. Nunca o contrário. O `core/` não sabe que o Next.js existe.
 
@@ -51,13 +69,13 @@ O App Router do Next.js tem dois papéis neste projeto:
 ```
 Cliente → POST /api/checkin
              ↓
-         Valida JWT (Supabase middleware)
+         Valida JWT (Firebase middleware)
              ↓
          Valida payload (Zod schema de core/entities/)
              ↓
          Executa calculateConsumption() (core/math/)
              ↓
-         Debita wallet (Supabase transaction)
+         Debita wallet (Firebase transaction)
              ↓
          Retorna resultado
 ```
@@ -75,7 +93,7 @@ features/
 ├── booking/           ← Fatia de "Aulas"
 │   ├── components/    ← UI específica desta feature
 │   ├── hooks/         ← Data fetching desta feature
-│   └── mock-data.ts   ← Dados que serão substituídos por Supabase
+│   └── mock-data.ts   ← Dados que serão substituídos por Firebase
 ├── wallet/            ← Fatia de "Carteira"
 │   ├── components/
 │   ├── hooks/
@@ -83,7 +101,7 @@ features/
 └── profile/           ← Fatia de "Perfil"
 ```
 
-A vantagem: quando você deletar `features/wallet/`, o resto do app não quebra. Quando o Supabase for integrado, você substitui `mock-data.ts` por um hook real sem tocar em nada mais.
+A vantagem: quando você deletar `features/wallet/`, o resto do app não quebra. Quando o Firebase for integrado, você substitui `mock-data.ts` por um hook real sem tocar em nada mais.
 
 ---
 
@@ -183,7 +201,7 @@ Dois imports, uma linha de JSX. Isso é intencional.
 
 **Nunca coloque aqui:**
 - Lógica de negócio (`if (balance < consumption)`)
-- Chamadas diretas ao Supabase
+- Chamadas diretas ao Firebase
 - Estado local de componente (`useState`, `useEffect`)
 - Componentes com mais de ~10 linhas de JSX
 
@@ -200,7 +218,7 @@ A estrutura atual tem `app/dashboard/layout.tsx`, `app/aulas/layout.tsx` etc. (s
 
 **Nunca coloque aqui:**
 - `import { useEffect } from 'react'` — qualquer coisa React
-- `import { createClient } from '@supabase/supabase-js'`
+- `import { createClient } from '@Firebase/Firebase-js'`
 - Lógica de formatação visual (`toLocaleDateString`, `toFixed` para exibição)
 - Chamadas de API ou fetch
 
@@ -222,7 +240,7 @@ features/booking/
 │   └── lessons-page-content.tsx
 ├── hooks/
 │   └── use-lessons.ts   ← TanStack Query: fetch + mutations
-├── mock-data.ts         ← Substituído por hook real no Supabase
+├── mock-data.ts         ← Substituído por hook real no Firebase
 └── index.ts             ← Barrel export: o contrato público da feature
 ```
 
@@ -268,10 +286,10 @@ lib/auth/
 ```typescript
 export const authService: IAuthService = process.env.NODE_ENV === 'test'
   ? new MockAuthService()
-  : supabaseAuthAdapter   // a implementar
+  : FirebaseAuthAdapter   // a implementar
 ```
 
-Quando o Supabase for integrado, você cria `lib/auth/supabase.ts` implementando `IAuthService` e muda *uma linha* em `index.ts`. O resto do app não sabe da diferença — `use-auth.ts` chama `authService.signIn()`, não importa quem implementa.
+Quando o Firebase for integrado, você cria `lib/auth/Firebase.ts` implementando `IAuthService` e muda *uma linha* em `index.ts`. O resto do app não sabe da diferença — `use-auth.ts` chama `authService.signIn()`, não importa quem implementa.
 
 **Nunca coloque aqui:**
 - Componentes React
@@ -315,11 +333,11 @@ formatHours(8.5)        → "8,5h"
 
 **Onde ver:** `IAuthService` em `lib/auth/types.ts`.
 
-O sistema está *fechado para modificação* (você não toca nos callers) mas *aberto para extensão* (você adiciona `SupabaseAuthAdapter implements IAuthService`). Os hooks `useLogin` e `useRegister` continuam idênticos.
+O sistema está *fechado para modificação* (você não toca nos callers) mas *aberto para extensão* (você adiciona `FirebaseAuthAdapter implements IAuthService`). Os hooks `useLogin` e `useRegister` continuam idênticos.
 
 ### L — Liskov Substitution Principle
 
-**Onde ver:** `MockAuthService` e o futuro `SupabaseAuthAdapter` são intercambiáveis porque ambos satisfazem `IAuthService`. Você pode substituir um pelo outro sem que nenhum teste quebre.
+**Onde ver:** `MockAuthService` e o futuro `FirebaseAuthAdapter` são intercambiáveis porque ambos satisfazem `IAuthService`. Você pode substituir um pelo outro sem que nenhum teste quebre.
 
 ### I — Interface Segregation Principle
 
@@ -327,14 +345,14 @@ O sistema está *fechado para modificação* (você não toca nos callers) mas *
 
 ### D — Dependency Inversion Principle
 
-**Onde ver:** A camada de aplicação (`hooks/use-auth.ts`) depende da abstração `IAuthService`, não de `@supabase/supabase-js` diretamente. O detalhe (Supabase) é injetado via `lib/auth/index.ts`.
+**Onde ver:** A camada de aplicação (`hooks/use-auth.ts`) depende da abstração `IAuthService`, não de `@Firebase/Firebase-js` diretamente. O detalhe (Firebase) é injetado via `lib/auth/index.ts`.
 
 ```
 hooks/use-auth.ts
     ↓ depende de
 lib/auth/types.ts (IAuthService)  ← abstração
     ↑ implementado por
-lib/auth/mock.ts | lib/auth/supabase.ts  ← detalhe
+lib/auth/mock.ts | lib/auth/Firebase.ts  ← detalhe
 ```
 
 ### Clean Code Aplicado
@@ -361,125 +379,3 @@ if (hour < PEAK_WINDOW.startHour || hour >= PEAK_WINDOW.endHour)
 `features/booking/index.ts` exporta apenas o que outras partes do app podem consumir. Implementações internas ficam ocultas — encapsulamento no nível de módulo.
 
 ---
-
-## 5. 🗺️ TRILHA DE ESTUDOS — Do Coração para a Superfície
-
-A regra da trilha: sempre leia de baixo (domínio) para cima (UI). Entenda o "o quê" antes do "como mostrar".
-
----
-
-### Passo 1 — O Negócio (2–3h)
-
-**Leia em ordem:**
-
-```
-project.md                          ← Entenda a regra de negócio em português
-blueprint.md                        ← Veja como ela se transforma em código
-src/core/constants/professors.ts    ← A tabela de preços como código
-src/core/entities/lesson.ts         ← O que é uma Aula para o sistema
-src/core/entities/wallet.ts         ← O que é uma Carteira
-src/core/math/consumption.ts        ← O motor de cálculo
-src/core/math/lesson-eligibility.ts ← As regras de acesso ao check-in
-```
-
-> **Pergunta para se fazer:** "Se eu precisar testar a regra do arredondamento da Marília, o que eu importo e como?"
-
----
-
-### Passo 2 — Os Adaptadores (1–2h)
-
-**Leia em ordem:**
-
-```
-src/lib/auth/types.ts    ← O contrato IAuthService
-src/lib/auth/mock.ts     ← A implementação fake
-src/lib/auth/index.ts    ← O ponto de troca
-src/hooks/use-auth.ts    ← Como hooks consomem a interface
-```
-
-> **Pergunta para se fazer:** "O que muda quando Supabase for integrado? O que *não* muda?"
-
----
-
-### Passo 3 — As Fatias Verticais (2–3h)
-
-**Leia uma feature completa, da base para o topo:**
-
-```
-src/features/booking/mock-data.ts          ← Dados de exemplo (shape real)
-src/features/booking/hooks/use-lessons.ts  ← TanStack Query: fetch + mutation
-src/features/booking/components/lesson-card.tsx
-src/features/booking/components/lesson-details-modal.tsx  ← mais complexo
-src/features/booking/index.ts              ← API pública da feature
-```
-
-> **Pergunta para se fazer:** "Quando o Supabase for integrado, qual arquivo muda? Qual não muda?"
-
----
-
-### Passo 4 — O Roteamento (1h)
-
-**Leia em ordem:**
-
-```
-src/app/layout.tsx                ← Root layout + FOUT script
-src/app/dashboard/layout.tsx      ← DashboardShell
-src/app/dashboard/page.tsx        ← Thin wrapper (2 linhas)
-src/app/aulas/page.tsx            ← Outro thin wrapper
-```
-
-> **Perceba:** pages são propositalmente vazias. A complexidade está nas features.
-
----
-
-### Passo 5 — A UI Compartilhada (1–2h)
-
-**Leia em ordem:**
-
-```
-src/components/ui/button.tsx           ← CVA: variantes como tipos
-src/components/ui/dialog.tsx           ← showClose prop: extensão sem modificação
-src/components/shared/level-badge.tsx  ← Componente que conhece o domínio
-src/components/shared/sidebar.tsx      ← GSAP + estado de tema + navegação
-src/app/globals.css                    ← Design tokens OKLch + tema laranja
-```
-
----
-
-### Passo 6 — O Dashboard como Síntese (1h)
-
-O `DashboardPageContent` é o arquivo que *usa tudo*: importa de `core/`, de `features/`, de `components/shared/`. Leia-o por último para ver como as peças se encaixam.
-
-```
-src/features/dashboard/components/dashboard-page-content.tsx
-src/features/dashboard/components/upcoming-lessons-section.tsx
-```
-
----
-
-### Mapa Visual da Trilha
-
-```
-Semana 1                    Semana 2                    Semana 3
-──────────────────────────────────────────────────────────────────
-core/constants/             lib/auth/ (IAuthService)    app/ (rotas)
-core/entities/          →   hooks/use-auth.ts       →   components/shared/
-core/math/                  features/booking/           dashboard (síntese)
-```
-
----
-
-### Sinais de que você entendeu a arquitetura
-
-**Teste 1 — Novo professor:**
-Quando alguém pedir para adicionar "Rafael" com consumo `1.20h` e arredondamento padrão, você saberá que o **único** lugar a editar é `core/constants/professors.ts`. Nenhum componente, hook ou page precisa mudar. O `calculateConsumption` passará a calcular corretamente para Rafael automaticamente.
-
-**Teste 2 — Migração para Supabase:**
-Quando chegar a hora de integrar o banco real, você saberá que:
-
-1. Cria `lib/auth/supabase.ts` implementando `IAuthService`
-2. Substitui `mock-data.ts` nas features por hooks que chamam Supabase
-3. O `core/` não toca em nada
-4. Os componentes não sabem da diferença
-
-Esse isolamento não é burocracia — é o que permite que o projeto cresça sem que a complexidade cresça junto.

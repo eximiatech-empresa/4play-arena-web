@@ -18,6 +18,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "4Play Arena",
   description: "Gestão inteligente de horas de tênis",
+  icons: {
+    icon: "/logos/logo1.png"
+  }
 }
 
 export default function RootLayout({

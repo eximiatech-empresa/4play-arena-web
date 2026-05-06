@@ -117,13 +117,7 @@ export function LoginPageContent() {
             </Link>
           </p>
 
-          <div className="mt-8 rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3">
-            <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wide mb-1.5">
-              Acesso de teste
-            </p>
-            <p className="text-xs text-zinc-500 font-mono">aluno@4playarena.com</p>
-            <p className="text-xs text-zinc-500 font-mono">senha123</p>
-          </div>
+         
         </div>
       </div>
     </div>

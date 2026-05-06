@@ -39,13 +39,16 @@ export function useLogin() {
         const userData = userSnap.data()
 
         if (userData.isActive === false) {
-          
           await authService.signOut()
-          
           throw new Error("Sua conta foi desativada. Entre em contato com a administração.")
         }
-        if (userData.role === "ADMIN") {
+
+        if (userData.mustChangePassword === true) {
+          redirectRoute = "/force-password-change"
+        } else if (userData.role === "ADMIN") {
           redirectRoute = "/painel"
+        } else if (userData.role === "TEACHER") {
+          redirectRoute = "/class-management"
         }
       }
 

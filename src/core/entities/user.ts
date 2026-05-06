@@ -14,6 +14,7 @@ const BaseUserSchema = z.object({
   role: UserRoleSchema,
   createdAt: z.string(),
   isActive: z.boolean().default(true),
+  mustChangePassword: z.boolean().default(false),
 })
 
 export const AdminUserSchema = BaseUserSchema.extend({
@@ -42,3 +43,11 @@ export const UserSchema = z.discriminatedUnion("role", [
   StudentUserSchema,
 ])
 export type User = z.infer<typeof UserSchema>
+
+export const CreateUserFormSchema = z.object({
+  name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+  email: z.string().email("E-mail inválido"),
+  role: z.enum(["TEACHER", "ADMIN"] as const),
+  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+})
+export type CreateUserFormData = z.infer<typeof CreateUserFormSchema>

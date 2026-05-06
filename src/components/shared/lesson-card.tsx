@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { MapPin, Users, Loader2, CheckCircle2, Lock } from "lucide-react"
+import { MapPin, Users, Loader2, CheckCircle2, Lock, X, CalendarClock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { Lesson } from "@/core/entities/lesson"
 import { LevelBadge } from "@/components/shared/level-badge"
@@ -14,7 +14,7 @@ interface LessonCardProps {
   lesson: Lesson
   studentLevelIndex?: number
   walletBalance?: number
-  onClick?: (lesson : Lesson) => void
+  onClick?: (lesson: Lesson) => void
   isTeacherView?: boolean
 }
 
@@ -31,20 +31,22 @@ export function LessonCard({
   studentLevelIndex,
   walletBalance,
   onClick,
-  isTeacherView = false
+  isTeacherView = false,
 }: LessonCardProps) {
   const checkIn = useCheckIn()
-  const cancelCheckIn = useCancelCheckIn() 
+  const cancelCheckIn = useCancelCheckIn()
   const [showCancelModal, setShowCancelModal] = useState(false)
+
+  const isCancelled = lesson.status === "cancelled"
+  const isRescheduled = lesson.wasRescheduled && !isCancelled
+  const isBlocked = isCancelled || isRescheduled
 
   function handleCancelClick() {
     const isValidForRefund = canCancelCheckIn(new Date(lesson.dateTime))
     if (isValidForRefund) {
-       // Se tem direito ao reembolso, cancela direto sem frescura
-       executeCancel()
+      executeCancel()
     } else {
-       // Se já passou do tempo de T-4h, avisa ele antes de cancelar
-       setShowCancelModal(true)
+      setShowCancelModal(true)
     }
   }
 
@@ -60,7 +62,7 @@ export function LessonCard({
       },
       onError: (err: Error) => {
         toast.error("Erro ao cancelar: " + err.message)
-      }
+      },
     })
   }
 
@@ -88,47 +90,61 @@ export function LessonCard({
     timeZone: "America/Sao_Paulo",
   })
 
-  const statusColor = isDone
-    ? "border-brand/30 bg-brand-subtle"
-    : lesson.checkInStatus === "open"
-      ? "border-brand/50"
-      : "border-brand/50"
+  const cardBorderColor = isCancelled
+    ? "border-red-200 bg-red-50/50"
+    : isRescheduled
+      ? "border-amber-200 bg-amber-50/50"
+      : isDone
+        ? "border-brand/30 bg-brand-subtle"
+        : "border-brand/50"
 
   return (
     <div
-      onClick={() => onClick?.(lesson)}
+      onClick={() => !isBlocked && onClick?.(lesson)}
       className={cn(
         "bg-card border rounded-2xl shadow-sm overflow-hidden flex flex-col",
-        onClick && "cursor-pointer hover:shadow-md transition-shadow",
-        statusColor
+        !isBlocked && onClick && "cursor-pointer hover:shadow-md transition-shadow",
+        isBlocked && "opacity-75",
+        cardBorderColor,
       )}
     >
       {/* Header */}
       <div className="px-4 pt-4 flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-chart-3 flex items-center justify-center shrink-0 ">
+          <div
+            className={cn(
+              "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+              isCancelled ? "bg-red-400" : isRescheduled ? "bg-amber-400" : "bg-chart-3",
+            )}
+          >
             <span className="text-xs font-bold text-white">
               {lesson.professorName.charAt(0)}
             </span>
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">
-              {lesson.professorName}
-            </p>
+            <p className="text-sm font-semibold text-foreground">{lesson.professorName}</p>
             <div className="flex items-center gap-1 mt-0.5">
               <LevelBadge level={lesson.level} size="xs" />
             </div>
           </div>
         </div>
 
-        {lesson.checkInStatus === "open" && !isDone && (
+        {/* Status badge — only one shows at a time */}
+        {isCancelled ? (
+          <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide bg-red-500 rounded-full px-2 py-0.5 text-white">
+            Cancelada
+          </span>
+        ) : isRescheduled ? (
+          <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide bg-amber-500 rounded-full px-2 py-0.5 text-white">
+            Reagendada
+          </span>
+        ) : lesson.checkInStatus === "open" && !isDone ? (
           <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide bg-brand rounded-full px-2 py-0.5 text-white">
             Mar Aberto
           </span>
-        )}
-        {isDone && (
+        ) : isDone ? (
           <CheckCircle2 className="w-4 h-4 text-brand shrink-0 mt-0.5" />
-        )}
+        ) : null}
       </div>
 
       {/* Details */}
@@ -145,37 +161,68 @@ export function LessonCard({
           </span>
           <span className="flex items-center gap-1">
             <Users className="w-3 h-3 text-brand" />
-            {spotsLeft > 0 ? `${spotsLeft} vaga${spotsLeft > 1 ? "s restantes" : " restante"}` : "Lotada"}
+            {spotsLeft > 0
+              ? `${spotsLeft} vaga${spotsLeft > 1 ? "s restantes" : " restante"}`
+              : "Lotada"}
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 pt-1">
-          <span
-            className={cn(
-              "text-sm font-bold tabular-nums",
-              lesson.isOffPeak ? "text-brand" : "text-foreground"
-            )}
-          >
-            -{lesson.previewConsumption.toFixed(2)}h
-          </span>
-          {lesson.isOffPeak && (
-            <span className="text-[10px] font-semibold text-brand bg-brand-subtle px-1.5 py-0.5 rounded-full">
-              Fora de Pico −5%
+        {!isCancelled && (
+          <div className="flex items-center gap-1.5 pt-1">
+            <span
+              className={cn(
+                "text-sm font-bold tabular-nums",
+                lesson.isOffPeak ? "text-brand" : "text-foreground",
+              )}
+            >
+              -{lesson.previewConsumption.toFixed(2)}h
             </span>
-          )}
-        </div>
+            {lesson.isOffPeak && (
+              <span className="text-[10px] font-semibold text-brand bg-brand-subtle px-1.5 py-0.5 rounded-full">
+                Fora de Pico −5%
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Action area */}
       <div className="px-4 pb-4" onClick={(e) => e.stopPropagation()}>
         {isTeacherView ? (
-          // VISÃO DO PROFESSOR
-          <Button
-            onClick={() => onClick && onClick(lesson)}
-            className="w-full h-8 text-xs font-semibold bg-chart-3 hover:bg-chart-4 text-white transition-colors"
-          >
-            Gerenciar Aula
-          </Button>
+          isCancelled ? (
+            <div className="flex items-center justify-center gap-1.5 text-xs text-red-400 font-semibold py-1.5">
+              <X className="w-3.5 h-3.5" />
+              Aula cancelada
+            </div>
+          ) : isRescheduled ? (
+            <div className="flex items-center justify-center gap-1.5 text-xs text-amber-600 font-semibold py-1.5">
+              <CalendarClock className="w-3.5 h-3.5" />
+              Aula reagendada
+            </div>
+          ) : (
+            <Button
+              onClick={() => onClick && onClick(lesson)}
+              className="w-full h-8 text-xs font-semibold bg-chart-3 hover:bg-chart-4 text-white transition-colors"
+            >
+              Gerenciar Aula
+            </Button>
+          )
+        ) : isBlocked ? (
+          isDone ? (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-1.5 justify-center text-xs text-green-800 font-semibold py-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Play's reembolsados
+              </div>
+              <div className="text-[10px] text-center text-red-500 font-medium">
+                Inscrição cancelada
+              </div>
+            </div>
+          ) : (
+            <Button disabled className="w-full h-8 text-xs font-semibold bg-zinc-100 text-zinc-400 cursor-not-allowed opacity-100">
+              {isCancelled ? "Aula cancelada" : "Aula adiada"}
+            </Button>
+          )
         ) : isLevelBlocked ? (
           <div className="flex items-center gap-1.5 text-xs text-zinc-400 justify-center py-1.5">
             <Lock className="w-3 h-3" />
@@ -193,7 +240,7 @@ export function LessonCard({
             </div>
             <Button
               variant="outline"
-              onClick={handleCancelClick} // <-- CHAMA A FUNÇÃO INTELIGENTE AQUI
+              onClick={handleCancelClick}
               disabled={cancelCheckIn.isPending}
               className="w-full h-7 text-[10px] text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600"
             >
@@ -204,7 +251,6 @@ export function LessonCard({
               )}
             </Button>
 
-            {/* Injeta o Modal no DOM */}
             <CancelConfirmationModal
               open={showCancelModal}
               onOpenChange={setShowCancelModal}
@@ -214,14 +260,13 @@ export function LessonCard({
           </div>
         ) : (
           <Button
-            // PASSAMOS O OBJETO 'lesson' INTEIRO AGORA!
             onClick={() => checkIn.mutate(lesson)}
             disabled={!isActionable || checkIn.isPending}
             className={cn(
               "w-full h-8 text-xs font-semibold transition-colors",
               isActionable
                 ? "bg-chart-3 hover:bg-chart-4 text-white"
-                : "bg-zinc-100 text-zinc-400 cursor-not-allowed"
+                : "bg-zinc-100 text-zinc-400 cursor-not-allowed",
             )}
           >
             {checkIn.isPending ? (

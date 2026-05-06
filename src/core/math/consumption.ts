@@ -1,10 +1,13 @@
 import { getProfessorById, PEAK_WINDOW, type Plan } from "@/core/constants/professors"
 import { CheckInStatus } from "../entities/lesson"
-
-const CLOSED = 0;
-const OPENTOALL = 6;
-const ENROLLEDONLY = 24;
-const OFF_PEAK_MULTIPLIER = 0.95;
+import {
+  MS_PER_HOUR,
+  CHECK_IN_CLOSED_HOURS,
+  CHECK_IN_OPEN_HOURS,
+  CHECK_IN_ENROLLED_HOURS,
+  CANCEL_REFUND_MIN_HOURS,
+  OFF_PEAK_MULTIPLIER,
+} from "@/core/constants/booking-rules"
 
 export const PLAN_MULTIPLIERS: Record<Plan, number> = {
   mensal: 1.2,
@@ -54,26 +57,15 @@ export function getCheckInStatus(
   isEnrolled: boolean,
   now = new Date()
 ): CheckInStatus {
-  const msToClass = classDateTime.getTime() - now.getTime()
-  const hoursToClass = msToClass / (1000 * 60 * 60)
+  const hoursToClass = (classDateTime.getTime() - now.getTime()) / MS_PER_HOUR
 
-  if (hoursToClass < CLOSED) return "closed"
-  if (hoursToClass <= OPENTOALL) return "open"
-  if (hoursToClass <= ENROLLEDONLY && isEnrolled) return "enrolled_only"
+  if (hoursToClass < CHECK_IN_CLOSED_HOURS) return "closed"
+  if (hoursToClass <= CHECK_IN_OPEN_HOURS) return "open"
+  if (hoursToClass <= CHECK_IN_ENROLLED_HOURS && isEnrolled) return "enrolled_only"
   return "not_open"
 }
 
 export function canCancelCheckIn(classDateTime: Date, now = new Date()): boolean {
-  const msToClass = classDateTime.getTime() - now.getTime()
-  const hoursToClass = msToClass / (1000 * 60 * 60)
-  
-  return hoursToClass >= 4 // T-4h
-}
-
-export const calculateDaysLeft = (expirationDateString: string | undefined) => {
-  if (!expirationDateString) return 0
-  const expDate = new Date(expirationDateString)
-  const today = new Date()
-  const diffTime = expDate.getTime() - today.getTime()
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  const hoursToClass = (classDateTime.getTime() - now.getTime()) / MS_PER_HOUR
+  return hoursToClass >= CANCEL_REFUND_MIN_HOURS
 }

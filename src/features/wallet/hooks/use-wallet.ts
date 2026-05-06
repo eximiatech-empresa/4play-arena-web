@@ -11,37 +11,34 @@ import { waitForAuthInit } from "@/lib/firebase/auth"
 
 const WALLET_QUERY_KEY = ["wallet"] as const
 
-async function fetchWallet(): Promise<Wallet | null> {  
-  try {
-    const fbUser = await waitForAuthInit()
-    if (!fbUser) return null;
+async function fetchWallet(): Promise<Wallet | null> {
+  const fbUser = await waitForAuthInit()
+  if (!fbUser) return null
 
-    const userDoc = await getUserDocument(fbUser.uid);
+  const userDoc = await getUserDocument(fbUser.uid)
+  if (!userDoc || userDoc.role !== "STUDENT") return null
 
-    if (!userDoc || userDoc.role !== "STUDENT") return null;
+  const student = userDoc as StudentUser
+  const transactions = await getStudentTransactions(fbUser.uid)
+  const planData = PLANS[student.currentPlanId]
 
-    const student = userDoc as StudentUser;
-    
-    const transactions = await getStudentTransactions(fbUser.uid);
+  const totalPlays =
+    transactions
+      .filter((t) => t.type === "purchase" || t.type === "credit")
+      .reduce((sum, t) => sum + t.amount, 0) ||
+    planData.hours * PLAN_MULTIPLIERS[student.currentPlanId]
 
-    const planData = PLANS[student.currentPlanId];
-
-    const totalPlays = transactions
-      .filter(t => t.type === "purchase" || t.type === "credit")
-      .reduce((sum, t) => sum + t.amount, 0) || (planData.hours * PLAN_MULTIPLIERS[student.currentPlanId]);
-
-    return {
-      id: student.uid,
-      studentId: student.uid,
-      balance: student.walletBalance,
-      totalPlays,
-      plan: student.currentPlanId,
-      planValue: planData.price,
-      expiresAt: student.planExpiresAt,
-      transactions,
-    };
-  } catch (error) {
-    throw error;
+  return {
+    id: student.uid,
+    studentId: student.uid,
+    balance: student.walletBalance,
+    totalPlays,
+    plan: student.currentPlanId,
+    planValue: planData.price,
+    expiresAt: typeof student.planExpiresAt === "string"
+      ? student.planExpiresAt
+      : new Date((student.planExpiresAt as { seconds: number }).seconds * 1000).toISOString(),
+    transactions,
   }
 }
 
@@ -78,41 +75,4 @@ export function usePurchasePlan() {
       queryClient.invalidateQueries({ queryKey: ["currentUser"] })
     },
   })
-
-  async function fetchWallet(): Promise<Wallet | null> {
-    try {
-      // Agora a carteira também ESPERA o Firebase carregar o cache
-      const fbUser = await waitForAuthInit()
-      if (!fbUser) return null
-
-      const userDoc = await getUserDocument(fbUser.uid)
-      if (!userDoc || userDoc.role !== "STUDENT") {
-        console.error("Erro: Documento do Aluno não encontrado ou role não é STUDENT.", userDoc)
-        return null
-      }
-
-      const student = userDoc as StudentUser
-      const transactions = await getStudentTransactions(fbUser.uid)
-      const planData = PLANS[student.currentPlanId]
-
-      const totalPlays = transactions
-        .filter(t => t.type === "purchase" || t.type === "credit")
-        .reduce((sum, t) => sum + t.amount, 0) || (planData.hours * PLAN_MULTIPLIERS[student.currentPlanId])
-
-      return {
-        id: student.uid,
-        studentId: student.uid,
-        balance: student.walletBalance,
-        totalPlays,
-        plan: student.currentPlanId,
-        planValue: planData.price,
-        expiresAt: student.planExpiresAt,
-        transactions,
-      }
-    } catch (error) {
-      // Se der qualquer erro fatal, jogamos na cara do console para não ficarmos cegos
-      console.error("Erro fatal ao carregar a carteira:", error)
-      throw error
-    }
-  }
 }
