@@ -162,7 +162,7 @@ function DesktopNav({ pathname, items }: DesktopNavProps) {
               "relative flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors group",
               isActive
                 ? "text-brand-dark"
-                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-100",
+                : "text-zinc-500 dark:text-zinc-400 hover:text-brand hover:bg-brand/5 dark:hover:text-zinc-100",
             )}
           >
             <Icon
@@ -170,7 +170,7 @@ function DesktopNav({ pathname, items }: DesktopNavProps) {
                 "w-4 h-4 shrink-0 transition-colors",
                 isActive
                   ? "text-brand"
-                  : "text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-600 dark:group-hover:text-zinc-300",
+                  : "text-zinc-400 dark:text-zinc-500 group-hover:text-brand dark:group-hover:text-zinc-300",
               )}
             />
             <span>{item.label}</span>
