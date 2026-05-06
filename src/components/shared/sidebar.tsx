@@ -63,7 +63,7 @@ const MENU_CONFIG: NavItemConfig[] = [
     label: "Aulas",
     href: "/aulas",
     icon: CalendarCheck,
-    roles: ["STUDENT", "TEACHER", "ADMIN"],
+    roles: ["STUDENT",],
   },
   {
     label: "Gestão",
