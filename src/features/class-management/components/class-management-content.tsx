@@ -1,56 +1,23 @@
-// src/features/class-management/components/class-management-content.tsx
 "use client"
+
 import { useState } from "react"
-import { ClipboardList, LayoutGrid, List, Loader2 } from "lucide-react"
-import { useLessons } from "@/features/booking/hooks/use-lessons" 
-import { useCurrentUser } from "@/hooks/use-current-user" 
+import { ClipboardList, Loader2 } from "lucide-react"
+import { useLessons } from "@/features/booking/hooks/use-lessons"
+import { useCurrentUser } from "@/hooks/use-current-user"
+import { ViewToggle } from "@/components/shared/view-toggle"
 import { LessonCard } from "@/components/shared/lesson-card"
 import { ClassManagementModal } from "./class-management-modal"
 import type { Lesson } from "@/core/entities/lesson"
 import { cn } from "@/lib/utils"
 
-function ViewToggle({
-  value,
-  onChange,
-}: {
-  value: "grid" | "list"
-  onChange: (v: "grid" | "list") => void
-}) {
-  return (
-    <div className="flex items-center gap-0.5 border border-zinc-200 rounded-lg p-0.5 bg-zinc-50 shrink-0">
-      <button
-        onClick={() => onChange("grid")}
-        title="Visualização em grade"
-        className={cn(
-          "p-1.5 rounded-md transition-colors",
-          value === "grid" ? "bg-white shadow-sm text-zinc-800" : "text-zinc-400 hover:text-zinc-600",
-        )}
-      >
-        <LayoutGrid className="w-4 h-4" />
-      </button>
-      <button
-        onClick={() => onChange("list")}
-        title="Visualização em lista"
-        className={cn(
-          "p-1.5 rounded-md transition-colors",
-          value === "list" ? "bg-white shadow-sm text-zinc-800" : "text-zinc-400 hover:text-zinc-600",
-        )}
-      >
-        <List className="w-4 h-4" />
-      </button>
-    </div>
-  )
-}
-
 export function ClassManagementContent() {
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-  
-  const { data: currentUser } = useCurrentUser()
 
+  const { data: currentUser } = useCurrentUser()
   const { data: lessons, isLoading } = useLessons(
     { professorId: currentUser?.uid },
-    { enabled: !!currentUser?.uid }
+    { enabled: !!currentUser?.uid },
   )
 
   return (
@@ -68,14 +35,12 @@ export function ClassManagementContent() {
         <ViewToggle value={viewMode} onChange={setViewMode} />
       </div>
 
-      {/* ESTADO DE CARREGAMENTO */}
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
           <Loader2 className="w-8 h-8 animate-spin mb-2" />
           <p className="text-sm">Carregando suas aulas...</p>
         </div>
       ) : lessons && lessons.length > 0 ? (
-        /* GRID DE AULAS REAIS */
         <div
           className={cn(
             "gap-4",
@@ -84,17 +49,16 @@ export function ClassManagementContent() {
               : "flex flex-col",
           )}
         >
-          {lessons.map((lesson: Lesson) => (
+          {lessons.map((lesson) => (
             <LessonCard
               key={lesson.id}
               lesson={lesson}
               isTeacherView={true}
-              onClick={(lesson: Lesson) => setSelectedLesson(lesson)}
+              onClick={(l) => setSelectedLesson(l)}
             />
           ))}
         </div>
       ) : (
-        /* ESTADO VAZIO */
         <div className="text-center py-20 border-2 border-dashed border-zinc-100 rounded-2xl">
           <p className="text-zinc-500">Você não possui nenhuma aula agendada no momento.</p>
         </div>
@@ -104,7 +68,6 @@ export function ClassManagementContent() {
         <ClassManagementModal
           lesson={selectedLesson}
           onClose={() => setSelectedLesson(null)}
-          
         />
       )}
     </div>

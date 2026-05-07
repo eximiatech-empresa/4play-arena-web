@@ -201,38 +201,40 @@ export async function processCheckOut(
   playsRefund: number,
   professorName: string,
 ): Promise<void> {
-  const userRef = doc(db, "users", studentId)
   const lessonRef = doc(db, "lessons", lessonId)
-
-  const userSnap = await getDoc(userRef)
-  if (!userSnap.exists()) return
-
-  const newBalance = (userSnap.data().walletBalance ?? 0) + playsRefund
-
   const batch = writeBatch(db)
-
-  batch.update(userRef, { walletBalance: newBalance })
 
   batch.update(lessonRef, {
     checkedInStudentIds: arrayRemove(studentId),
     enrolledStudentIds: arrayRemove(studentId),
   })
 
-  const txRef = doc(collection(db, "transactions"))
-  const tx: Transaction = {
-    id: txRef.id,
-    walletId: studentId,
-    studentId,
-    lessonId,
-    type: "credit",
-    amount: playsRefund,
-    balanceAfter: newBalance,
-    professorName: `${professorName} (Estorno)`,
-    classLevel: null,
-    isOffPeak: null,
-    createdAt: new Date().toISOString(),
+  if (playsRefund > 0) {
+    const userRef = doc(db, "users", studentId)
+    const userSnap = await getDoc(userRef)
+
+    if (userSnap.exists()) {
+      const newBalance = (userSnap.data().walletBalance ?? 0) + playsRefund
+
+      batch.update(userRef, { walletBalance: newBalance })
+
+      const txRef = doc(collection(db, "transactions"))
+      const tx: Transaction = {
+        id: txRef.id,
+        walletId: studentId,
+        studentId,
+        lessonId,
+        type: "credit",
+        amount: playsRefund,
+        balanceAfter: newBalance,
+        professorName: `${professorName} (Estorno)`,
+        classLevel: null,
+        isOffPeak: null,
+        createdAt: new Date().toISOString(),
+      }
+      batch.set(txRef, tx)
+    }
   }
-  batch.set(txRef, tx)
 
   await batch.commit()
 }

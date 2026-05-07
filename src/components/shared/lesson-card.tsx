@@ -1,14 +1,15 @@
 "use client"
-import { useState } from "react"
+
 import { MapPin, Users, Loader2, CheckCircle2, Lock, X, CalendarClock } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { formatLessonDateTime } from "@/lib/utils/date"
 import type { Lesson } from "@/core/entities/lesson"
 import { LevelBadge } from "@/components/shared/level-badge"
 import { Button } from "@/components/ui/button"
-import { useCheckIn, useCancelCheckIn } from "@/features/booking/hooks/use-lessons"
-import { toast } from "sonner"
+import { useCheckIn } from "@/features/booking/hooks/use-lessons"
+import { useLessonCardState } from "@/features/booking/hooks/use-lesson-card-state"
+import { useLessonCancelFlow } from "@/features/booking/hooks/use-lesson-cancel-flow"
 import { CancelConfirmationModal } from "../../features/booking/components/cancel-confirmation-modal"
-import { canCancelCheckIn } from "@/core/math/consumption"
 
 interface LessonCardProps {
   lesson: Lesson
@@ -34,69 +35,17 @@ export function LessonCard({
   isTeacherView = false,
 }: LessonCardProps) {
   const checkIn = useCheckIn()
-  const cancelCheckIn = useCancelCheckIn()
-  const [showCancelModal, setShowCancelModal] = useState(false)
+  const {
+    isCancelled, isRescheduled, isBlocked, isDone,
+    spotsLeft, isLevelBlocked, hasBalance, isActionable,
+    cardBorderColor,
+  } = useLessonCardState(lesson, studentLevelIndex, walletBalance)
+  const {
+    handleCancelClick, executeCancel,
+    showCancelModal, setShowCancelModal, isPending: isCancelPending,
+  } = useLessonCancelFlow(lesson)
 
-  const isCancelled = lesson.status === "cancelled"
-  const isRescheduled = lesson.wasRescheduled && !isCancelled
-  const isBlocked = isCancelled || isRescheduled
-
-  function handleCancelClick() {
-    const isValidForRefund = canCancelCheckIn(new Date(lesson.dateTime))
-    if (isValidForRefund) {
-      executeCancel()
-    } else {
-      setShowCancelModal(true)
-    }
-  }
-
-  function executeCancel() {
-    cancelCheckIn.mutate(lesson, {
-      onSuccess: (data) => {
-        setShowCancelModal(false)
-        if (data.refunded) {
-          toast.success("Check-in cancelado! Os Play's foram reembolsados para sua carteira.")
-        } else {
-          toast.warning("Inscrição cancelada (sem reembolso devido ao prazo de 4h).")
-        }
-      },
-      onError: (err: Error) => {
-        toast.error("Erro ao cancelar: " + err.message)
-      },
-    })
-  }
-
-  const spotsLeft = lesson.totalSpots - lesson.enrolledCount
-  const hasSpot = spotsLeft > 0 || lesson.isEnrolled
-  const isLevelBlocked = (studentLevelIndex ?? 0) < lesson.levelIndex
-  const hasBalance = (walletBalance ?? 0) >= lesson.previewConsumption
-  const isDone = lesson.checkInStatus === "done"
-  const isActionable =
-    !isLevelBlocked &&
-    hasBalance &&
-    hasSpot &&
-    (lesson.checkInStatus === "enrolled_only" || lesson.checkInStatus === "open")
-
-  const dateObj = new Date(lesson.dateTime)
-  const formattedDate = dateObj.toLocaleDateString("pt-BR", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: "America/Sao_Paulo",
-  })
-  const formattedTime = dateObj.toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "America/Sao_Paulo",
-  })
-
-  const cardBorderColor = isCancelled
-    ? "border-red-200 bg-red-50/50"
-    : isRescheduled
-      ? "border-amber-200 bg-amber-50/50"
-      : isDone
-        ? "border-brand/30 bg-brand-subtle"
-        : "border-brand/50"
+  const { date: formattedDate, time: formattedTime } = formatLessonDateTime(lesson.dateTime)
 
   return (
     <div
@@ -129,7 +78,6 @@ export function LessonCard({
           </div>
         </div>
 
-        {/* Status badge — only one shows at a time */}
         {isCancelled ? (
           <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide bg-red-500 rounded-full px-2 py-0.5 text-white">
             Cancelada
@@ -241,10 +189,10 @@ export function LessonCard({
             <Button
               variant="outline"
               onClick={handleCancelClick}
-              disabled={cancelCheckIn.isPending}
+              disabled={isCancelPending}
               className="w-full h-7 text-[10px] text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600"
             >
-              {cancelCheckIn.isPending && !showCancelModal ? (
+              {isCancelPending && !showCancelModal ? (
                 <Loader2 className="w-3 h-3 animate-spin" />
               ) : (
                 "Cancelar Inscrição"
@@ -255,7 +203,7 @@ export function LessonCard({
               open={showCancelModal}
               onOpenChange={setShowCancelModal}
               onConfirm={executeCancel}
-              isPending={cancelCheckIn.isPending}
+              isPending={isCancelPending}
             />
           </div>
         ) : (

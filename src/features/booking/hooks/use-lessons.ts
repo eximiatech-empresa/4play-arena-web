@@ -97,13 +97,17 @@ export function useCancelCheckIn() {
       if (!user) throw new Error("Usuário não logado")
 
       const isValidForRefund = canCancelCheckIn(new Date(lesson.dateTime))
+      const refundAmount = isValidForRefund ? lesson.previewConsumption : 0
 
-      if (isValidForRefund) {
-        await processCheckOut(user.uid, lesson.id, lesson.previewConsumption, lesson.professorName)
-      }
+      await processCheckOut(user.uid, lesson.id, refundAmount, lesson.professorName)
 
       return {
-        updatedLesson: { ...lesson, checkInStatus: "open" as const },
+        updatedLesson: {
+          ...lesson,
+          isEnrolled: false,
+          checkInStatus: "open" as const,
+          enrolledCount: Math.max(0, lesson.enrolledCount - 1),
+        },
         refunded: isValidForRefund,
       }
     },
