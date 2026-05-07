@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { useForm, Controller } from "react-hook-form"
+import { useForm, Controller, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
 import { Eye, EyeOff } from "lucide-react"
@@ -27,16 +27,12 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
   const [showPassword, setShowPassword] = useState(false)
   const { mutate: createUser, isPending } = useCreateUser()
 
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    formState: { errors },
-  } = useForm<CreateUserFormData>({
+  const form = useForm<CreateUserFormData>({
     resolver: zodResolver(CreateUserFormSchema),
-    defaultValues: { name: "", email: "", role: "TEACHER", password: "" },
+    defaultValues: { name: "", email: "", role: "TEACHER", password: "", lessonPrice: undefined },
   })
+  const { register, handleSubmit, control, reset, formState: { errors } } = form
+  const selectedRole = useWatch({ control, name: "role" })
 
   function handleClose(value: boolean) {
     if (!value) {
@@ -118,6 +114,24 @@ export function CreateUserModal({ open, onOpenChange }: CreateUserModalProps) {
               <p className="text-xs text-destructive">{errors.role.message}</p>
             )}
           </div>
+
+          {selectedRole === "TEACHER" && (
+            <div className="space-y-2">
+              <Label htmlFor="lessonPrice">Preço da Aula (em Plays)</Label>
+              <Input
+                className="border-chart-4"
+                id="lessonPrice"
+                type="number"
+                min={0}
+                step={0.5}
+                placeholder="Ex: 8"
+                {...register("lessonPrice", { valueAsNumber: true })}
+              />
+              {errors.lessonPrice && (
+                <p className="text-xs text-destructive">{errors.lessonPrice.message}</p>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="password">Senha Padrão</Label>

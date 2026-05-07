@@ -23,6 +23,8 @@ const UserListItemSchema = z.object({
   isActive: z.boolean().default(true),
   level: z.string().optional(),
   walletBalance: z.number().optional(),
+  lessonPrice: z.number().optional(),
+  earningsBalance: z.number().optional(),
   createdAt: z.string().optional(),
 })
 export type UserListItem = z.infer<typeof UserListItemSchema>
@@ -90,4 +92,8 @@ export async function createUserDocument(input: CreateUserInput): Promise<void> 
 
 export async function updateUserActiveStatus(uid: string, isActive: boolean): Promise<void> {
   await updateDoc(doc(db, "users", uid), { isActive })
+}
+
+export async function updateTeacherLessonPrice(uid: string, lessonPrice: number): Promise<void> {
+  await updateDoc(doc(db, "users", uid), { lessonPrice })
 }

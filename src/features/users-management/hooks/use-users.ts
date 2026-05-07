@@ -1,6 +1,6 @@
 "use client"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getAllUsers, updateUserActiveStatus } from "@/lib/firebase/firestore"
+import { getAllUsers, updateUserActiveStatus, updateTeacherLessonPrice } from "@/lib/firebase/firestore"
 import { createStaffUser, type CreateStaffUserInput } from "@/app/actions/create-staff-user"
 
 const QUERY_KEY = ["users"] as const
@@ -30,6 +30,17 @@ export function useSetUserStatus() {
   return useMutation({
     mutationFn: ({ uid, isActive }: { uid: string; isActive: boolean }) =>
       updateUserActiveStatus(uid, isActive),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY })
+    },
+  })
+}
+
+export function useUpdateLessonPrice() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ uid, lessonPrice }: { uid: string; lessonPrice: number }) =>
+      updateTeacherLessonPrice(uid, lessonPrice),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY })
     },

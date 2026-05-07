@@ -69,6 +69,7 @@ function mapDocToLesson(
     reservaIds: docData.reservaIds,
     enrolledStudentIds: docData.enrolledStudentIds,
     checkedInStudentIds: docData.checkedInStudentIds,
+    price: docData.price ?? 0,
   } satisfies Lesson;
 }
 
@@ -162,20 +163,26 @@ export async function processCheckIn(
   if (lessonData.enrolledStudentIds?.includes(studentId))
     throw new Error("Inscrição já realizada")
 
-  const currentBalance: number = userSnap.data().walletBalance ?? 0
-  if (currentBalance < playsCost) throw new Error("Saldo insuficiente de Plays")
+  // Authoritative cost comes from the lesson document; fall back to client-computed value
+  const actualCost: number = typeof lessonData.price === "number" && lessonData.price > 0
+    ? lessonData.price
+    : playsCost
 
-  const newBalance = currentBalance - playsCost
+  const currentBalance: number = userSnap.data().walletBalance ?? 0
+  if (currentBalance < actualCost) throw new Error("Saldo insuficiente de Plays")
+
+  const newStudentBalance = currentBalance - actualCost
+  const now = new Date().toISOString()
 
   const batch = writeBatch(db)
 
-  batch.update(userRef, { walletBalance: newBalance })
+  // 1. Deduct from student
+  batch.update(userRef, { walletBalance: newStudentBalance })
 
-  // Student goes ONLY into enrolledStudentIds — teacher handles checkedInStudentIds
-  batch.update(lessonRef, {
-    enrolledStudentIds: arrayUnion(studentId),
-  })
+  // 2. Student goes ONLY into enrolledStudentIds — teacher handles checkedInStudentIds
+  batch.update(lessonRef, { enrolledStudentIds: arrayUnion(studentId) })
 
+  // 3. Student debit transaction
   const txRef = doc(collection(db, "transactions"))
   const tx: Transaction = {
     id: txRef.id,
@@ -183,14 +190,35 @@ export async function processCheckIn(
     studentId,
     lessonId,
     type: "debit",
-    amount: -playsCost,
-    balanceAfter: newBalance,
+    amount: -actualCost,
+    balanceAfter: newStudentBalance,
     professorName,
     classLevel,
     isOffPeak: offPeak,
-    createdAt: new Date().toISOString(),
+    createdAt: now,
   }
   batch.set(txRef, tx)
+
+  // 4. Credit professor's earningsBalance
+  const professorRef = doc(db, "users", lessonData.professorId)
+  const professorSnap = await getDoc(professorRef)
+  if (professorSnap.exists()) {
+    const currentEarnings: number = professorSnap.data().earningsBalance ?? 0
+    batch.update(professorRef, { earningsBalance: currentEarnings + actualCost })
+
+    // 5. Teacher credit transaction
+    const teacherTxRef = doc(collection(db, "teacher_transactions"))
+    batch.set(teacherTxRef, {
+      id: teacherTxRef.id,
+      teacherId: lessonData.professorId,
+      studentId,
+      studentName: userSnap.data().name ?? null,
+      lessonId,
+      type: "CHECK_IN_CREDIT",
+      amount: actualCost,
+      createdAt: now,
+    })
+  }
 
   await batch.commit()
 }

@@ -25,6 +25,8 @@ export type AdminUser = z.infer<typeof AdminUserSchema>
 
 export const TeacherUserSchema = BaseUserSchema.extend({
   role: z.literal("TEACHER"),
+  lessonPrice: z.number().nonnegative().default(0),
+  earningsBalance: z.number().nonnegative().default(0),
 })
 export type TeacherUser = z.infer<typeof TeacherUserSchema>
 
@@ -50,5 +52,10 @@ export const CreateUserFormSchema = z.object({
   email: z.string().email("E-mail inválido"),
   role: z.enum(["TEACHER", "ADMIN"] as const),
   password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+  lessonPrice: z.number({ invalid_type_error: "Informe um valor numérico" }).nonnegative("Deve ser ≥ 0").optional(),
+}).superRefine((val, ctx) => {
+  if (val.role === "TEACHER" && (val.lessonPrice === undefined || val.lessonPrice === null)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Preço da aula é obrigatório para Professores", path: ["lessonPrice"] })
+  }
 })
 export type CreateUserFormData = z.infer<typeof CreateUserFormSchema>
