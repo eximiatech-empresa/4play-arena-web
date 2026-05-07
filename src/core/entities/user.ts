@@ -15,6 +15,7 @@ const BaseUserSchema = z.object({
   createdAt: z.string(),
   isActive: z.boolean().default(true),
   mustChangePassword: z.boolean().default(false),
+  phone: z.string().nullish(),
 })
 
 export const AdminUserSchema = BaseUserSchema.extend({
