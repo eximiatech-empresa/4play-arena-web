@@ -1,6 +1,7 @@
 import {
   doc,
   collection,
+  runTransaction,
   writeBatch,
   getDoc,
   getDocs,
@@ -69,7 +70,6 @@ function mapDocToLesson(
     reservaIds: docData.reservaIds,
     enrolledStudentIds: docData.enrolledStudentIds,
     checkedInStudentIds: docData.checkedInStudentIds,
-    price: docData.price ?? 0,
   } satisfies Lesson;
 }
 
@@ -141,86 +141,91 @@ export async function getLessonsByDate(dateStr: string, studentId: string, plan:
 
 // Student enrollment: deducts plays and adds to enrolledStudentIds only.
 // Teacher check-in (marking attendance) is handled by updateStudentAttendance.
+//
+// Uses runTransaction so the read of the professor's lessonPrice and all balance
+// writes are atomic — no window for a concurrent update to produce inconsistent state.
 export async function processCheckIn(
   studentId: string,
   lessonId: string,
-  playsCost: number,
+  playsCost: number,   // previewConsumption — used as fallback if professor has no lessonPrice
   professorName: string,
   classLevel: string,
   offPeak: boolean,
 ): Promise<void> {
-  const userRef = doc(db, "users", studentId)
-  const lessonRef = doc(db, "lessons", lessonId)
+  const userRef    = doc(db, "users", studentId)
+  const lessonRef  = doc(db, "lessons", lessonId)
 
-  const [userSnap, lessonSnap] = await Promise.all([getDoc(userRef), getDoc(lessonRef)])
+  await runTransaction(db, async (tx) => {
+    // ── 1. Reads (must all precede writes in a Firestore transaction) ─────────
+    const [userSnap, lessonSnap] = await Promise.all([
+      tx.get(userRef),
+      tx.get(lessonRef),
+    ])
 
-  if (!userSnap.exists()) throw new Error("Aluno não encontrado")
-  if (!lessonSnap.exists()) throw new Error("Aula não encontrada")
+    if (!userSnap.exists())   throw new Error("Aluno não encontrado")
+    if (!lessonSnap.exists()) throw new Error("Aula não encontrada")
 
-  const lessonData = lessonSnap.data()
-  if ((lessonData.enrolledStudentIds?.length ?? 0) >= lessonData.totalSpots)
-    throw new Error("Aula já está lotada")
-  if (lessonData.enrolledStudentIds?.includes(studentId))
-    throw new Error("Inscrição já realizada")
+    const lessonData = lessonSnap.data()
 
-  // Authoritative cost comes from the lesson document; fall back to client-computed value
-  const actualCost: number = typeof lessonData.price === "number" && lessonData.price > 0
-    ? lessonData.price
-    : playsCost
+    if ((lessonData.enrolledStudentIds?.length ?? 0) >= lessonData.totalSpots)
+      throw new Error("Aula já está lotada")
+    if (lessonData.enrolledStudentIds?.includes(studentId))
+      throw new Error("Inscrição já realizada")
 
-  const currentBalance: number = userSnap.data().walletBalance ?? 0
-  if (currentBalance < actualCost) throw new Error("Saldo insuficiente de Plays")
+    const professorRef  = doc(db, "users", lessonData.professorId)
+    const professorSnap = await tx.get(professorRef)
 
-  const newStudentBalance = currentBalance - actualCost
-  const now = new Date().toISOString()
+    // Authoritative cost: professor's current lessonPrice; fallback to previewConsumption
+    const professorData = professorSnap.exists() ? professorSnap.data() : null
+    const actualCost: number =
+      typeof professorData?.lessonPrice === "number" && professorData.lessonPrice > 0
+        ? professorData.lessonPrice
+        : playsCost
 
-  const batch = writeBatch(db)
+    const currentBalance: number = userSnap.data().walletBalance ?? 0
+    if (currentBalance < actualCost) throw new Error("Saldo insuficiente de Plays")
 
-  // 1. Deduct from student
-  batch.update(userRef, { walletBalance: newStudentBalance })
+    const newStudentBalance = currentBalance - actualCost
+    const currentEarnings: number = professorData?.earningsBalance ?? 0
+    const now = new Date().toISOString()
 
-  // 2. Student goes ONLY into enrolledStudentIds — teacher handles checkedInStudentIds
-  batch.update(lessonRef, { enrolledStudentIds: arrayUnion(studentId) })
+    // ── 2. Writes ─────────────────────────────────────────────────────────────
+    tx.update(userRef, { walletBalance: newStudentBalance })
+    tx.update(lessonRef, { enrolledStudentIds: arrayUnion(studentId) })
 
-  // 3. Student debit transaction
-  const txRef = doc(collection(db, "transactions"))
-  const tx: Transaction = {
-    id: txRef.id,
-    walletId: studentId,
-    studentId,
-    lessonId,
-    type: "debit",
-    amount: -actualCost,
-    balanceAfter: newStudentBalance,
-    professorName,
-    classLevel,
-    isOffPeak: offPeak,
-    createdAt: now,
-  }
-  batch.set(txRef, tx)
-
-  // 4. Credit professor's earningsBalance
-  const professorRef = doc(db, "users", lessonData.professorId)
-  const professorSnap = await getDoc(professorRef)
-  if (professorSnap.exists()) {
-    const currentEarnings: number = professorSnap.data().earningsBalance ?? 0
-    batch.update(professorRef, { earningsBalance: currentEarnings + actualCost })
-
-    // 5. Teacher credit transaction
-    const teacherTxRef = doc(collection(db, "teacher_transactions"))
-    batch.set(teacherTxRef, {
-      id: teacherTxRef.id,
-      teacherId: lessonData.professorId,
+    // Student debit transaction
+    const txRef = doc(collection(db, "transactions"))
+    tx.set(txRef, {
+      id: txRef.id,
+      walletId: studentId,
       studentId,
-      studentName: userSnap.data().name ?? null,
       lessonId,
-      type: "CHECK_IN_CREDIT",
-      amount: actualCost,
+      type: "debit",
+      amount: -actualCost,
+      balanceAfter: newStudentBalance,
+      professorName,
+      classLevel,
+      isOffPeak: offPeak,
       createdAt: now,
-    })
-  }
+    } satisfies Transaction)
 
-  await batch.commit()
+    // Professor earnings + teacher_transactions only if professor doc exists
+    if (professorSnap.exists()) {
+      tx.update(professorRef, { earningsBalance: currentEarnings + actualCost })
+
+      const teacherTxRef = doc(collection(db, "teacher_transactions"))
+      tx.set(teacherTxRef, {
+        id: teacherTxRef.id,
+        teacherId: lessonData.professorId,
+        studentId,
+        studentName: userSnap.data().name ?? null,
+        lessonId,
+        type: "CHECK_IN_CREDIT",
+        amount: actualCost,
+        createdAt: now,
+      })
+    }
+  })
 }
 
 export async function processCheckOut(

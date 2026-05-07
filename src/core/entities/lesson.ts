@@ -26,7 +26,6 @@ export const LessonDocumentSchema = z.object({
   description: z.string().optional(),
   titularIds: z.array(z.string()).default([]),
   reservaIds: z.array(z.string()).default([]),
-  price: z.number().nonnegative().default(0),
 })
 
 export type LessonDocument = z.infer<typeof LessonDocumentSchema>
@@ -64,7 +63,6 @@ export const LessonSchema = z.object({
   reservaIds: z.array(z.string()).default([]),
   enrolledStudentIds: z.array(z.string()).default([]),
   checkedInStudentIds: z.array(z.string()).default([]),
-  price: z.number().nonnegative().default(0),
 })
 
 export const ProfessorSchema = z.object({
@@ -95,7 +93,6 @@ export const LessonGridTemplateSchema = z.object({
   description: z.string().optional(),
   titularIds: z.array(z.string()).default([]),
   reservaIds: z.array(z.string()).default([]),
-  price: z.number().nonnegative().default(0),
 })
 
 export type LessonGridTemplate = z.infer<typeof LessonGridTemplateSchema>
