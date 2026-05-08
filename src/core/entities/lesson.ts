@@ -20,12 +20,20 @@ export const LessonDocumentSchema = z.object({
   enrolledStudentIds: z.array(z.string()).default([]),
   // Students who confirmed attendance (plays already deducted)
   checkedInStudentIds: z.array(z.string()).default([]),
+  // Students explicitly marked as absent by the teacher (no refund)
+  absentStudentIds: z.array(z.string()).default([]),
   status: LessonStatusSchema,
   // Set to true when a teacher reschedules the lesson after students enrolled
   wasRescheduled: z.boolean().default(false),
   description: z.string().optional(),
   titularIds: z.array(z.string()).default([]),
   reservaIds: z.array(z.string()).default([]),
+  // Populated when the lesson is cancelled
+  cancellationReason: z.string().nullish(),
+  // Populated when this lesson was rescheduled: points to the new lesson doc
+  rescheduledToId: z.string().optional(),
+  // Populated on the new lesson doc created from a reschedule
+  rescheduledFromId: z.string().optional(),
 })
 
 export type LessonDocument = z.infer<typeof LessonDocumentSchema>
@@ -63,6 +71,10 @@ export const LessonSchema = z.object({
   reservaIds: z.array(z.string()).default([]),
   enrolledStudentIds: z.array(z.string()).default([]),
   checkedInStudentIds: z.array(z.string()).default([]),
+  absentStudentIds: z.array(z.string()).default([]),
+  cancellationReason: z.string().nullish(),
+  rescheduledToId: z.string().optional(),
+  rescheduledFromId: z.string().optional(),
 })
 
 export const ProfessorSchema = z.object({

@@ -1,11 +1,16 @@
 import { z } from "zod"
 
-export const NotificationTypeSchema = z.enum(["lesson_cancelled", "lesson_rescheduled"])
+export const NotificationTypeSchema = z.enum([
+  "lesson_cancelled",
+  "lesson_rescheduled",
+  "lesson_finished",
+])
 
 export const NotificationSchema = z.object({
   id: z.string(),
   userId: z.string(),
   type: NotificationTypeSchema,
+  title: z.string().optional(),
   message: z.string(),
   lessonId: z.string(),
   read: z.boolean().default(false),

@@ -15,6 +15,7 @@ import {
   Users,
   Moon,
   Sun,
+  History,
   type LucideIcon,
 } from "lucide-react";
 import gsap from "gsap";
@@ -63,7 +64,13 @@ const MENU_CONFIG: NavItemConfig[] = [
     label: "Aulas",
     href: "/aulas",
     icon: CalendarCheck,
-    roles: ["STUDENT",],
+    roles: ["STUDENT"],
+  },
+  {
+    label: "Histórico",
+    href: "/historico",
+    icon: History,
+    roles: ["STUDENT"],
   },
   {
     label: "Gestão",

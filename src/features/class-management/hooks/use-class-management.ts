@@ -1,37 +1,50 @@
 "use client"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { LESSONS_QUERY_KEY } from "@/features/booking/hooks/use-lessons"
+import { STUDENT_HISTORY_QUERY_KEY } from "@/features/booking/hooks/use-student-history"
 import {
-  updateStudentAttendance,
+  markStudentAttendance,
   cancelLesson,
   rescheduleLesson,
+  finishLesson,
 } from "@/lib/firebase/booking"
 import type { Lesson } from "@/core/entities/lesson"
 
-export function useUpdateAttendance() {
+export function useMarkAttendance() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({
       lessonId,
       studentId,
-      action,
+      status,
     }: {
       lessonId: string
       studentId: string
-      action: "checkin" | "undo"
-    }) => updateStudentAttendance(lessonId, studentId, action),
+      status: "present" | "absent" | "none"
+    }) => markStudentAttendance(lessonId, studentId, status),
 
-    onSuccess: (_data, { lessonId, studentId, action }) => {
+    onSuccess: (_data, { lessonId, studentId, status }) => {
       queryClient.setQueriesData<Lesson[]>({ queryKey: LESSONS_QUERY_KEY }, (old) => {
         if (!old) return old
         return old.map((l) => {
           if (l.id !== lessonId) return l
-          const updated =
-            action === "checkin"
-              ? [...new Set([...l.checkedInStudentIds, studentId])]
-              : l.checkedInStudentIds.filter((id) => id !== studentId)
-          return { ...l, checkedInStudentIds: updated }
+
+          let checkedIn = [...l.checkedInStudentIds]
+          let absent = [...l.absentStudentIds]
+
+          if (status === "present") {
+            checkedIn = [...new Set([...checkedIn, studentId])]
+            absent = absent.filter((id) => id !== studentId)
+          } else if (status === "absent") {
+            absent = [...new Set([...absent, studentId])]
+            checkedIn = checkedIn.filter((id) => id !== studentId)
+          } else {
+            checkedIn = checkedIn.filter((id) => id !== studentId)
+            absent = absent.filter((id) => id !== studentId)
+          }
+
+          return { ...l, checkedInStudentIds: checkedIn, absentStudentIds: absent }
         })
       })
     },
@@ -46,7 +59,6 @@ export function useCancelLesson() {
       cancelLesson(lessonId, reason),
 
     onSuccess: (_data, { lessonId }) => {
-      // Mark as cancelled in cache — card stays visible with red style
       queryClient.setQueriesData<Lesson[]>({ queryKey: LESSONS_QUERY_KEY }, (old) =>
         old
           ? old.map((l) => (l.id === lessonId ? { ...l, status: "cancelled" as const } : l))
@@ -65,7 +77,6 @@ export function useRescheduleLesson() {
       rescheduleLesson(lessonId, newDateTimeISO),
 
     onSuccess: (_data, { lessonId, newDateTimeISO }) => {
-      // Update dateTime and mark as rescheduled in cache — card stays visible with amber style
       queryClient.setQueriesData<Lesson[]>({ queryKey: LESSONS_QUERY_KEY }, (old) => {
         if (!old) return old
         return old.map((l) =>
@@ -73,6 +84,23 @@ export function useRescheduleLesson() {
         )
       })
       queryClient.invalidateQueries({ queryKey: ["lessons", "by-date"] })
+    },
+  })
+}
+
+export function useFinishLesson() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ lessonId }: { lessonId: string }) => finishLesson(lessonId),
+
+    onSuccess: (_data, { lessonId }) => {
+      queryClient.setQueriesData<Lesson[]>({ queryKey: LESSONS_QUERY_KEY }, (old) =>
+        old
+          ? old.map((l) => (l.id === lessonId ? { ...l, status: "finished" as const } : l))
+          : old,
+      )
+      queryClient.invalidateQueries({ queryKey: STUDENT_HISTORY_QUERY_KEY })
     },
   })
 }
