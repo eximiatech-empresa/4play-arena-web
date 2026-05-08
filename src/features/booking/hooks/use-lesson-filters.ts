@@ -6,6 +6,9 @@ export type StatusFilter = "" | "active" | "cancelled" | "rescheduled"
 
 const PAGE_SIZE = 7
 
+// Check-in statuses that indicate the enrollment window is currently active
+const OPEN_FOR_ENROLLMENT: Lesson["checkInStatus"][] = ["open", "enrolled_only", "done"]
+
 interface UseLessonFiltersResult {
   filteredLessons: Lesson[] | undefined
   paginatedLessons: Lesson[] | undefined
@@ -18,12 +21,14 @@ export function useLessonFilters(
   filters: LessonFilters,
   availableOnly: boolean,
   statusFilter: StatusFilter,
+  openOnly: boolean,
   page: number,
 ): UseLessonFiltersResult {
   const filteredLessons = rawLessons?.filter((l) => {
     if (filters.professorId && l.professorId !== filters.professorId) return false
     if (filters.level && l.level !== filters.level) return false
     if (availableOnly && l.enrolledCount >= l.totalSpots && !l.isEnrolled) return false
+    if (openOnly && (l.status === "cancelled" || !OPEN_FOR_ENROLLMENT.includes(l.checkInStatus))) return false
 
     const { isCancelled, isRescheduled, isActive } = deriveLessonDisplayStatus(l)
     if (statusFilter === "active" && !isActive) return false

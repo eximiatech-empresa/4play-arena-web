@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CalendarCheck, ChevronLeft, ChevronRight, Filter } from "lucide-react"
+import { CalendarCheck, ChevronLeft, ChevronRight, Filter, X } from "lucide-react"
 import { useLessons, useLessonsByDate, type LessonFilters } from "@/features/booking/hooks/use-lessons"
 import { useLessonFilters, type StatusFilter } from "@/features/booking/hooks/use-lesson-filters"
 import { useLessonGridAnimation } from "@/features/booking/hooks/use-lesson-grid-animation"
@@ -26,6 +26,7 @@ const PROFESSOR_OPTIONS = [
 export function LessonsPageContent() {
   const [filters, setFilters] = useState<LessonFilters>({})
   const [availableOnly, setAvailableOnly] = useState(false)
+  const [openOnly, setOpenOnly] = useState(false)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("")
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
@@ -52,10 +53,27 @@ export function LessonsPageContent() {
     filters,
     availableOnly,
     statusFilter,
+    openOnly,
     page,
   )
 
   const gridRef = useLessonGridAnimation(lessons, isLoading)
+
+  const activeFilterCount = [
+    !!filters.professorId,
+    !!filters.level,
+    statusFilter !== "",
+    availableOnly,
+    openOnly,
+  ].filter(Boolean).length
+
+  function clearAllFilters() {
+    setFilters({})
+    setAvailableOnly(false)
+    setOpenOnly(false)
+    setStatusFilter("")
+    setPage(1)
+  }
 
   function handleSelectDate(date: string) {
     setSelectedDate(date)
@@ -98,20 +116,38 @@ export function LessonsPageContent() {
           <Filter
             className={cn(
               "w-3.5 h-3.5 transition-colors duration-200",
-              isLoading ? "text-brand animate-pulse" : "text-zinc-400",
+              isLoading ? "text-brand animate-pulse" : activeFilterCount > 0 ? "text-brand" : "text-zinc-400",
             )}
           />
           <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Filtros</span>
+          {activeFilterCount > 0 && (
+            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-brand text-white text-[9px] font-bold">
+              {activeFilterCount}
+            </span>
+          )}
           {isLoading && (
             <span className="ml-auto text-[10px] font-medium text-brand animate-pulse">Filtrando…</span>
+          )}
+          {!isLoading && activeFilterCount > 0 && (
+            <button
+              onClick={clearAllFilters}
+              className="ml-auto flex items-center gap-1 text-[11px] font-medium text-zinc-400 hover:text-zinc-600 transition-colors"
+            >
+              <X className="w-3 h-3" />
+              Limpar filtros
+            </button>
           )}
         </div>
 
         <div className="flex flex-wrap gap-3">
+          {/* Professor */}
           <div className="flex-1 min-w-35">
             <label className="block text-[11px] font-medium text-zinc-400 mb-1.5">Professor</label>
             <select
-              className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-brand"
+              className={cn(
+                "w-full text-sm bg-muted border rounded-lg px-3 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-brand transition-colors",
+                filters.professorId ? "border-brand/40 bg-brand/5" : "border-border",
+              )}
               value={filters.professorId ?? ""}
               onChange={(e) => { setFilters((f) => ({ ...f, professorId: e.target.value || undefined })); setPage(1) }}
             >
@@ -121,10 +157,14 @@ export function LessonsPageContent() {
             </select>
           </div>
 
+          {/* Nível */}
           <div className="flex-1 min-w-35">
             <label className="block text-[11px] font-medium text-zinc-400 mb-1.5">Nível</label>
             <select
-              className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-brand"
+              className={cn(
+                "w-full text-sm bg-muted border rounded-lg px-3 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-brand transition-colors",
+                filters.level ? "border-brand/40 bg-brand/5" : "border-border",
+              )}
               value={filters.level ?? ""}
               onChange={(e) => { setFilters((f) => ({ ...f, level: e.target.value || undefined })); setPage(1) }}
             >
@@ -134,10 +174,14 @@ export function LessonsPageContent() {
             </select>
           </div>
 
+          {/* Status */}
           <div className="flex-1 min-w-35">
             <label className="block text-[11px] font-medium text-zinc-400 mb-1.5">Status</label>
             <select
-              className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-brand"
+              className={cn(
+                "w-full text-sm bg-muted border rounded-lg px-3 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-brand transition-colors",
+                statusFilter ? "border-brand/40 bg-brand/5" : "border-border",
+              )}
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value as StatusFilter); setPage(1) }}
             >
@@ -148,24 +192,18 @@ export function LessonsPageContent() {
             </select>
           </div>
 
-          <div className="flex items-end">
-            <button
+          {/* Toggle buttons */}
+          <div className="flex items-end gap-2">
+            <FilterToggle
+              active={availableOnly}
               onClick={() => { setAvailableOnly((v) => !v); setPage(1) }}
-              className={cn(
-                "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors",
-                availableOnly
-                  ? "bg-brand-subtle border-brand/30 text-brand-dark"
-                  : "bg-muted border-border text-muted-foreground hover:bg-muted/80",
-              )}
-            >
-              <span
-                className={cn(
-                  "w-3 h-3 rounded-full border",
-                  availableOnly ? "bg-brand border-brand" : "border-zinc-300",
-                )}
-              />
-              Com vagas
-            </button>
+              label="Com vagas"
+            />
+            <FilterToggle
+              active={openOnly}
+              onClick={() => { setOpenOnly((v) => !v); setPage(1) }}
+              label="Aberta p/ inscrição"
+            />
           </div>
         </div>
       </div>
@@ -255,5 +293,27 @@ export function LessonsPageContent() {
         walletBalance={walletBalance}
       />
     </div>
+  )
+}
+
+function FilterToggle({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors",
+        active
+          ? "bg-brand-subtle border-brand/30 text-brand-dark"
+          : "bg-muted border-border text-muted-foreground hover:bg-muted/80",
+      )}
+    >
+      <span
+        className={cn(
+          "w-3 h-3 rounded-full border shrink-0",
+          active ? "bg-brand border-brand" : "border-zinc-300",
+        )}
+      />
+      {label}
+    </button>
   )
 }

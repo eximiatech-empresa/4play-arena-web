@@ -70,6 +70,7 @@ function mapDocToLesson(
     reservaIds: docData.reservaIds,
     enrolledStudentIds: docData.enrolledStudentIds,
     checkedInStudentIds: docData.checkedInStudentIds,
+    absentStudentIds: docData.absentStudentIds,
   } satisfies Lesson;
 }
 
@@ -272,17 +273,24 @@ export async function processCheckOut(
   await batch.commit()
 }
 
-// Teacher marks a student as present (checkin) or removes the mark (undo).
-// No wallet changes — plays were already deducted at enrollment.
-export async function updateStudentAttendance(
+// Teacher marks a student's attendance status.
+// - present: adds to checkedInStudentIds, removes from absentStudentIds.
+// - absent:  adds to absentStudentIds, removes from checkedInStudentIds. No refund — plays are lost.
+// - none:    removes from both (resets to pending).
+// No wallet changes occur here; plays were already deducted at enrollment.
+export async function markStudentAttendance(
   lessonId: string,
   studentId: string,
-  action: "checkin" | "undo",
+  status: "present" | "absent" | "none",
 ): Promise<void> {
-  await updateDoc(doc(db, "lessons", lessonId), {
-    checkedInStudentIds:
-      action === "checkin" ? arrayUnion(studentId) : arrayRemove(studentId),
-  })
+  const update =
+    status === "present"
+      ? { checkedInStudentIds: arrayUnion(studentId),  absentStudentIds: arrayRemove(studentId) }
+      : status === "absent"
+      ? { absentStudentIds:    arrayUnion(studentId),  checkedInStudentIds: arrayRemove(studentId) }
+      : { checkedInStudentIds: arrayRemove(studentId), absentStudentIds:    arrayRemove(studentId) }
+
+  await updateDoc(doc(db, "lessons", lessonId), update)
 }
 
 // Cancels a lesson and atomically refunds every enrolled student.
@@ -321,7 +329,7 @@ export async function cancelLesson(lessonId: string, reason: string): Promise<vo
   batch.update(lessonRef, {
     status: "cancelled",
     cancelledAt: now,
-    cancelReason: reason || null,
+    cancellationReason: reason || null,
   })
 
   for (const studentId of enrolledIds) {
@@ -367,6 +375,39 @@ export async function cancelLesson(lessonId: string, reason: string): Promise<vo
   await batch.commit()
 }
 
+// Marks a lesson as finished and notifies every enrolled student in one batch.
+// All writes are atomic — either everything commits or nothing does.
+export async function finishLesson(lessonId: string): Promise<void> {
+  const lessonRef = doc(db, "lessons", lessonId)
+  const lessonSnap = await getDoc(lessonRef)
+  if (!lessonSnap.exists()) throw new Error("Aula não encontrada")
+
+  const lessonData = lessonSnap.data()
+  const enrolledIds: string[] = lessonData.enrolledStudentIds ?? []
+  const lessonLabel = `${lessonData.level} com ${lessonData.professorName}`
+  const now = new Date().toISOString()
+
+  const batch = writeBatch(db)
+
+  batch.update(lessonRef, { status: "finished", finishedAt: now })
+
+  for (const studentId of enrolledIds) {
+    const notifRef = doc(collection(db, "notifications"))
+    batch.set(notifRef, {
+      id: notifRef.id,
+      userId: studentId,
+      type: "lesson_finished",
+      title: "Aula Finalizada",
+      message: `A aula de ${lessonLabel} foi concluída.`,
+      lessonId,
+      read: false,
+      createdAt: now,
+    })
+  }
+
+  await batch.commit()
+}
+
 // Reschedules a lesson and notifies every enrolled student.
 export async function rescheduleLesson(lessonId: string, newDateTimeISO: string): Promise<void> {
   const lessonRef = doc(db, "lessons", lessonId)
@@ -402,4 +443,75 @@ export async function rescheduleLesson(lessonId: string, newDateTimeISO: string)
   }
 
   await batch.commit()
+}
+
+// ─── Student lesson history ───────────────────────────────────────────────────
+
+export interface LessonHistoryEntry {
+  id: string
+  professorName: string
+  level: string
+  dateTime: string
+  court: string
+  status: import("@/core/entities/lesson").LessonStatus
+  wasRescheduled: boolean
+  cancellationReason?: string | null
+  rescheduledToId?: string
+  checkedInStudentIds: string[]
+  absentStudentIds: string[]
+  /** Plays effectively deducted — sourced from the debit transaction. Null if no transaction found. */
+  playsSpent: number | null
+}
+
+// Fetches every lesson the student enrolled in, plus the cost from transactions.
+// Sorting is done client-side to avoid a composite index on array-contains + orderBy.
+// Transaction fetch is isolated so a missing index or empty result never blocks lesson display.
+export async function getStudentLessonHistory(studentId: string): Promise<LessonHistoryEntry[]> {
+  const lessonsSnap = await getDocs(
+    query(
+      collection(db, "lessons"),
+      where("enrolledStudentIds", "array-contains", studentId),
+    ),
+  )
+
+  const playsByLesson: Record<string, number> = {}
+  try {
+    const txSnap = await getDocs(
+      query(
+        collection(db, "transactions"),
+        where("studentId", "==", studentId),
+        where("type", "==", "debit"),
+      ),
+    )
+    txSnap.docs.forEach((d) => {
+      const data = d.data()
+      if (data.lessonId) {
+        playsByLesson[data.lessonId] = Math.abs(data.amount as number)
+      }
+    })
+  } catch {
+    // Transaction fetch failed — lessons still display with playsSpent: null
+  }
+
+  return lessonsSnap.docs.flatMap((d) => {
+    const parsed = LessonDocumentSchema.safeParse({ id: d.id, ...d.data() })
+    if (!parsed.success) return []
+    const l = parsed.data
+    return [
+      {
+        id: l.id,
+        professorName: l.professorName,
+        level: l.level,
+        dateTime: l.dateTime,
+        court: l.court,
+        status: l.status,
+        wasRescheduled: l.wasRescheduled,
+        cancellationReason: l.cancellationReason,
+        rescheduledToId: l.rescheduledToId,
+        checkedInStudentIds: l.checkedInStudentIds,
+        absentStudentIds: l.absentStudentIds,
+        playsSpent: playsByLesson[l.id] ?? null,
+      } satisfies LessonHistoryEntry,
+    ]
+  })
 }
