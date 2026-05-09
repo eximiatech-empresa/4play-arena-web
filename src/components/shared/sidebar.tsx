@@ -73,6 +73,12 @@ const MENU_CONFIG: NavItemConfig[] = [
     roles: ["STUDENT"],
   },
   {
+    label: "Histórico",
+    href: "/historico-professor",
+    icon: History,
+    roles: ["TEACHER"],
+  },
+  {
     label: "Gestão",
     href: "/class-management",
     icon: ClipboardList,

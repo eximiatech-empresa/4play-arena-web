@@ -515,3 +515,92 @@ export async function getStudentLessonHistory(studentId: string): Promise<Lesson
     ]
   })
 }
+
+// ─── Teacher lesson history ───────────────────────────────────────────────────
+
+export interface TeacherLessonHistoryEntry {
+  id: string
+  level: string
+  dateTime: string
+  court: string
+  status: "finished" | "cancelled"
+  cancellationReason?: string | null
+  totalEnrolled: number
+  presentStudents: Array<{ id: string; name: string | null }>
+  absentCount: number
+  pendingCount: number
+  totalEarned: number
+}
+
+// Fetches every finished/cancelled lesson for the teacher, enriched with
+// attendance data and earnings from teacher_transactions.
+// Sorting is done client-side to avoid a composite index on professorId + orderBy.
+// Transaction fetch is isolated so a missing index or empty result never blocks lesson display.
+export async function getTeacherLessonHistory(teacherId: string): Promise<TeacherLessonHistoryEntry[]> {
+  const lessonsSnap = await getDocs(
+    query(
+      collection(db, "lessons"),
+      where("professorId", "==", teacherId),
+    ),
+  )
+
+  const earnedByLesson: Record<string, number> = {}
+  const namesByLesson: Record<string, Map<string, string | null>> = {}
+
+  try {
+    const txSnap = await getDocs(
+      query(
+        collection(db, "teacher_transactions"),
+        where("teacherId", "==", teacherId),
+      ),
+    )
+    txSnap.docs.forEach((d) => {
+      const data = d.data()
+      if (data.type === "CHECK_IN_CREDIT" && data.lessonId) {
+        earnedByLesson[data.lessonId] = (earnedByLesson[data.lessonId] ?? 0) + (data.amount as number)
+
+        if (!namesByLesson[data.lessonId]) {
+          namesByLesson[data.lessonId] = new Map()
+        }
+        namesByLesson[data.lessonId].set(data.studentId as string, (data.studentName as string | null) ?? null)
+      }
+    })
+  } catch {
+    // Transaction fetch failed — lessons still display with totalEarned: 0
+  }
+
+  const entries = lessonsSnap.docs.flatMap((d) => {
+    const parsed = LessonDocumentSchema.safeParse({ id: d.id, ...d.data() })
+    if (!parsed.success) return []
+    const l = parsed.data
+    if (l.status !== "finished" && l.status !== "cancelled") return []
+
+    const namesMap = namesByLesson[l.id] ?? new Map<string, string | null>()
+    const presentStudents = l.checkedInStudentIds.map((sid) => ({
+      id: sid,
+      name: namesMap.get(sid) ?? null,
+    }))
+    const pending = Math.max(
+      0,
+      l.enrolledStudentIds.length - l.checkedInStudentIds.length - l.absentStudentIds.length,
+    )
+
+    return [
+      {
+        id: l.id,
+        level: l.level,
+        dateTime: l.dateTime,
+        court: l.court,
+        status: l.status as "finished" | "cancelled",
+        cancellationReason: l.cancellationReason,
+        totalEnrolled: l.enrolledStudentIds.length,
+        presentStudents,
+        absentCount: l.absentStudentIds.length,
+        pendingCount: pending,
+        totalEarned: earnedByLesson[l.id] ?? 0,
+      } satisfies TeacherLessonHistoryEntry,
+    ]
+  })
+
+  return entries.sort((a, b) => b.dateTime.localeCompare(a.dateTime))
+}
