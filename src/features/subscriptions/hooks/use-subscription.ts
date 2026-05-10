@@ -3,6 +3,7 @@ import {
   createSubscription,
   getActiveSubscription,
   cancelSubscription,
+  getSubscriptionHistory,
 } from "@/lib/firebase/subscription"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import type { SubscriptionDocument } from "@/core/entities/subscription"
@@ -24,6 +25,18 @@ export function useActiveSubscription(studentId?: string) {
     },
     enabled: !!targetId,
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useSubscriptionHistory(studentId?: string) {
+  const { data: currentUser } = useCurrentUser()
+  const targetId = studentId ?? currentUser?.uid
+
+  return useQuery({
+    queryKey: [...SUBSCRIPTION_QUERY_KEY, "history", targetId],
+    queryFn: () => getSubscriptionHistory(targetId!),
+    enabled: !!targetId,
+    staleTime: 3 * 60 * 1000,
   })
 }
 

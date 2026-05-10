@@ -16,6 +16,7 @@ import {
   Moon,
   Sun,
   History,
+  ReceiptText,
   type LucideIcon,
 } from "lucide-react";
 import gsap from "gsap";
@@ -59,6 +60,12 @@ const MENU_CONFIG: NavItemConfig[] = [
     href: "/carteira-professor",
     icon: CreditCard,
     roles: ["TEACHER"],
+  },
+  {
+    label: "Meu Plano",
+    href: "/plano",
+    icon: ReceiptText,
+    roles: ["STUDENT"],
   },
   {
     label: "Aulas",
