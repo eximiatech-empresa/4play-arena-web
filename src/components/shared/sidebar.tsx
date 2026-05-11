@@ -17,6 +17,7 @@ import {
   Sun,
   History,
   ReceiptText,
+  CalendarDays,
   type LucideIcon,
 } from "lucide-react";
 import gsap from "gsap";
@@ -90,6 +91,12 @@ const MENU_CONFIG: NavItemConfig[] = [
     href: "/class-management",
     icon: ClipboardList,
     roles: ["TEACHER", "ADMIN"],
+  },
+  {
+    label: "Grade de Aulas",
+    href: "/admin-lessons",
+    icon: CalendarDays,
+    roles: ["ADMIN"],
   },
   {
     label: "Usuários",
