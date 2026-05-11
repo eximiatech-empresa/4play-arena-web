@@ -8,7 +8,7 @@ import {
   createBulkLessons,
   deleteLesson,
 } from "@/lib/firebase/admin-lessons"
-import type { CreateLessonInput } from "@/lib/firebase/admin-lessons"
+import type { CreateLessonInput } from "@/core/entities/lesson"
 import { LESSONS_QUERY_KEY } from "@/features/booking/hooks/use-lessons"
 
 export const ADMIN_LESSONS_KEY = ["admin-lessons"] as const

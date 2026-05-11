@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getFirebaseAuth } from "@/lib/firebase/auth"
 import { getLessons, getLessonsByDate, processCheckIn, processCheckOut } from "@/lib/firebase/booking"
-import { canCancelCheckIn, getCheckInStatus } from "@/core/math/consumption"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { useWallet } from "@/features/wallet/hooks/use-wallet"
+import { executeCheckIn } from "@/core/usecases/booking/check-in"
+import { executeCheckOut, calculateRefundAmount } from "@/core/usecases/booking/check-out"
 import type { Lesson } from "@/core/entities/lesson"
 import type { Plan } from "@/core/entities/wallet"
 
@@ -19,15 +20,13 @@ export function useLessons(filters?: LessonFilters, opts?: { enabled?: boolean }
   const { data: currentUser } = useCurrentUser()
   const { data: wallet } = useWallet()
 
-  const userId = currentUser?.uid;
+  const userId = currentUser?.uid
   const plan: Plan = wallet?.plan ?? "mensal"
 
   return useQuery({
-   
     queryKey: [...LESSONS_QUERY_KEY, userId, plan, filters],
     queryFn: async (): Promise<Lesson[]> => {
       if (!userId) return []
-      
       return getLessons(userId, plan, filters)
     },
     enabled: !!userId && (opts?.enabled ?? true),
@@ -58,23 +57,8 @@ export function useCheckIn() {
 
   return useMutation({
     mutationFn: async (lesson: Lesson) => {
-      const user = getFirebaseAuth().currentUser
-      if (!user) throw new Error("Usuário não logado")
-
-      const currentStatus = getCheckInStatus(new Date(lesson.dateTime), lesson.isEnrolled, new Date())
-
-      if (currentStatus === "not_open") throw new Error("O check-in para esta aula ainda não está liberado.")
-      if (currentStatus === "closed") throw new Error("Esta aula já foi encerrada.")
-
-      await processCheckIn(
-        user.uid,
-        lesson.id,
-        lesson.previewConsumption,
-        lesson.professorName,
-        lesson.level,
-        lesson.isOffPeak,
-      )
-
+      const userId = getFirebaseAuth().currentUser?.uid ?? null
+      await executeCheckIn(userId, lesson, processCheckIn)
       return { ...lesson, checkInStatus: "done" as const }
     },
     onSuccess: (updatedLesson) => {
@@ -93,13 +77,8 @@ export function useCancelCheckIn() {
 
   return useMutation({
     mutationFn: async (lesson: Lesson) => {
-      const user = getFirebaseAuth().currentUser
-      if (!user) throw new Error("Usuário não logado")
-
-      const isValidForRefund = canCancelCheckIn(new Date(lesson.dateTime))
-      const refundAmount = isValidForRefund ? lesson.previewConsumption : 0
-
-      await processCheckOut(user.uid, lesson.id, refundAmount, lesson.professorName)
+      const userId = getFirebaseAuth().currentUser?.uid ?? null
+      const { refunded } = await executeCheckOut(userId, lesson, processCheckOut)
 
       return {
         updatedLesson: {
@@ -108,7 +87,7 @@ export function useCancelCheckIn() {
           checkInStatus: "open" as const,
           enrolledCount: Math.max(0, lesson.enrolledCount - 1),
         },
-        refunded: isValidForRefund,
+        refunded,
       }
     },
     onSuccess: ({ updatedLesson }) => {
@@ -121,3 +100,5 @@ export function useCancelCheckIn() {
     },
   })
 }
+
+export { calculateRefundAmount }

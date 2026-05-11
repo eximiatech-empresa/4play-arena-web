@@ -3,8 +3,8 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Sidebar } from "./sidebar"
-import { LoadingScreen } from "./loading-screen"
-import { NotificationsWatcher } from "./notifications-watcher"
+import { LoadingScreen } from "@/components/shared/loading-screen"
+import { NotificationsWatcher } from "@/components/shared/notifications-watcher"
 import { useCurrentUser } from "@/hooks/use-current-user"
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {

@@ -15,7 +15,7 @@ export function buildCalendarGrid(year: number, month: number): (number | null)[
 
 /**
  * Converts a year/month/day triple into the `datetime-local` input format
- * with a default time of 08:00, ready to pre-fill the create-lesson form.
+ * with a default time of 08:00, ready to pre-fill a create-lesson form.
  */
 export function toDatetimeInput(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}T08:00`

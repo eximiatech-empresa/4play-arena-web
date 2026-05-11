@@ -1,4 +1,4 @@
-import { DashboardShell } from "@/components/shared/dashboard-shell"
+﻿import { DashboardShell } from "@/components/layout/dashboard-shell"
 
 export const dynamic = "force-dynamic"
 

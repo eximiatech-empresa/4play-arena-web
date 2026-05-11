@@ -30,7 +30,7 @@ import {
   STATUS_OPTIONS,
   LESSON_CHIP_CLASS,
 } from "../constants"
-import { buildCalendarGrid, toDatetimeInput } from "../utils"
+import { buildCalendarGrid, toDatetimeInput } from "@/utils/calendar"
 
 // ─── Lesson chip ──────────────────────────────────────────────────────────────
 

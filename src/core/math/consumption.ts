@@ -8,12 +8,11 @@ import {
   CANCEL_REFUND_MIN_HOURS,
   OFF_PEAK_MULTIPLIER,
 } from "@/core/constants/booking-rules"
+import { PLAN_MULTIPLIERS } from "@/core/constants/plan-pricing"
+import { ProfessorNotFoundError } from "@/core/errors/exceptions"
+import { ERROS } from "@/core/errors/erros"
 
-export const PLAN_MULTIPLIERS: Record<Plan, number> = {
-  mensal: 1.2,
-  trimestral: 1.0,
-  semestral: 0.8,
-}
+export { PLAN_MULTIPLIERS }
 
 export function isOffPeak(date: Date): boolean {
   const hour = date.getHours()
@@ -31,7 +30,7 @@ export function calculateConsumption({
 }): number {
   const professor = getProfessorById(professorId)
   if (!professor) {
-    throw new Error(`Professor "${professorId}" not found in pricing table`)
+    throw new ProfessorNotFoundError(ERROS.PROFESSOR_NAO_ENCONTRADO(professorId))
   }
 
   const baseHours = professor.consumption[plan]

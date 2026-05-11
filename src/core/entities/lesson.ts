@@ -108,3 +108,21 @@ export const LessonGridTemplateSchema = z.object({
 })
 
 export type LessonGridTemplate = z.infer<typeof LessonGridTemplateSchema>
+
+// ─── Admin lesson creation input ──────────────────────────────────────────────
+// Domain input for bulk lesson creation. Consumed by the Firebase infra layer
+// and the admin-lessons feature hooks.
+
+export interface CreateLessonInput {
+  description: string
+  professorId: string
+  professorName: string
+  lessonPrice: number
+  level: string
+  levelIndex: number
+  dateTime: string
+  court: string
+  totalSpots: number
+  type: "avulsa" | "recorrente"
+  repeatUntil?: string
+}

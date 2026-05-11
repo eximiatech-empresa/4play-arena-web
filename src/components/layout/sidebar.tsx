@@ -3,117 +3,16 @@
 import { useEffect, useRef } from "react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  LayoutDashboard,
-  CreditCard,
-  CalendarCheck,
-  UserCircle,
-  LogOut,
-  ClipboardList,
-  Users,
-  Moon,
-  Sun,
-  History,
-  ReceiptText,
-  CalendarDays,
-  type LucideIcon,
-} from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { LogOut, type LucideIcon } from "lucide-react";
 import gsap from "gsap";
 import { cn } from "@/lib/utils";
 import { LevelBadge } from "@/components/shared/level-badge";
 import { authService } from "@/lib/auth";
 import { useCurrentUser } from "@/hooks/use-current-user";
-
-// ─── Lógica de Permissões (RBAC) ──────────────────────────────────────────
-
-type Role = "STUDENT" | "TEACHER" | "ADMIN";
-
-interface NavItemConfig {
-  label: string;
-  href: string;
-  icon: LucideIcon;
-  roles?: Role[];
-}
-
-const MENU_CONFIG: NavItemConfig[] = [
-  {
-    label: "Visão Geral",
-    href: "/dashboard",
-    roles: ["STUDENT"],
-    icon: LayoutDashboard,
-  },
-  {
-    label: "Painel Executivo",
-    href: "/painel",
-    roles: ["ADMIN"],
-    icon: LayoutDashboard,
-  },
-  {
-    label: "Carteira",
-    href: "/carteira",
-    icon: CreditCard,
-    roles: ["STUDENT", "ADMIN"],
-  },
-  {
-    label: "Carteira",
-    href: "/carteira-professor",
-    icon: CreditCard,
-    roles: ["TEACHER"],
-  },
-  {
-    label: "Meu Plano",
-    href: "/plano",
-    icon: ReceiptText,
-    roles: ["STUDENT"],
-  },
-  {
-    label: "Aulas",
-    href: "/aulas",
-    icon: CalendarCheck,
-    roles: ["STUDENT"],
-  },
-  {
-    label: "Histórico",
-    href: "/historico",
-    icon: History,
-    roles: ["STUDENT"],
-  },
-  {
-    label: "Histórico",
-    href: "/historico-professor",
-    icon: History,
-    roles: ["TEACHER"],
-  },
-  {
-    label: "Gestão",
-    href: "/class-management",
-    icon: ClipboardList,
-    roles: ["TEACHER", "ADMIN"],
-  },
-  {
-    label: "Grade de Aulas",
-    href: "/admin-lessons",
-    icon: CalendarDays,
-    roles: ["ADMIN"],
-  },
-  {
-    label: "Usuários",
-    href: "/users-management",
-    icon: Users,
-    roles: ["ADMIN"],
-  },
-  { label: "Perfil", href: "/perfil", icon: UserCircle },
-];
-
-function getNavItemsForRole(userRole?: string): NavItemConfig[] {
-  return MENU_CONFIG.filter((item) => {
-    if (!item.roles || item.roles.length === 0) return true;
-    if (!userRole) return false;
-    return item.roles.includes(userRole as Role);
-  });
-}
+import { getNavItemsForRole, type NavItemConfig } from "@/utils/nav-config";
+import type { User } from "@/core/entities/user";
 
 // ─── Desktop nav with sliding indicator ──────────────────────────────────────
 
@@ -255,8 +154,6 @@ function MobileNavItem({
 
 // ─── Sidebar user card ────────────────────────────────────────────────────────
 
-import type { User } from "@/core/entities/user";
-
 function SidebarUserCard({ user }: { user: User | null | undefined }) {
   const name = user?.name ?? "Usuário";
   const initials = name
@@ -266,7 +163,6 @@ function SidebarUserCard({ user }: { user: User | null | undefined }) {
     .join("")
     .toUpperCase();
 
-  // Exibe a role ou o nível
   let badgeText = "Iniciante";
   if (user?.role === "ADMIN") {
     badgeText = "Admin";
@@ -295,7 +191,6 @@ function SidebarUserCard({ user }: { user: User | null | undefined }) {
 
 export function Sidebar() {
   const pathname = usePathname();
-  // const router = useRouter()
   const { data: user } = useCurrentUser();
   const { resolvedTheme, setTheme } = useTheme();
   const queryClient = useQueryClient();
@@ -306,11 +201,7 @@ export function Sidebar() {
 
   async function handleLogout() {
     await authService.signOut();
-
-    // 1. Limpa todo o cache do TanStack Query da memória
     queryClient.clear();
-
-    // 2. Força o navegador a destruir a árvore do React e recarregar a página no login
     window.location.href = "/login";
   }
 
@@ -364,32 +255,5 @@ export function Sidebar() {
         ))}
       </nav>
     </>
-  );
-}
-
-function TennisBallIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 40 40"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle cx="20" cy="20" r="18" className="stroke-brand" strokeWidth="2" />
-      <path
-        d="M 7 12 Q 20 4 33 12"
-        className="stroke-brand"
-        strokeWidth="1.5"
-        fill="none"
-        strokeLinecap="round"
-      />
-      <path
-        d="M 7 28 Q 20 36 33 28"
-        className="stroke-brand"
-        strokeWidth="1.5"
-        fill="none"
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }

@@ -10,21 +10,9 @@ import {
 } from "firebase/firestore"
 import { db } from "./firestore"
 import { LessonDocumentSchema } from "@/core/entities/lesson"
-import type { LessonDocument } from "@/core/entities/lesson"
+import type { LessonDocument, CreateLessonInput } from "@/core/entities/lesson"
 
-export interface CreateLessonInput {
-  description: string
-  professorId: string
-  professorName: string
-  lessonPrice: number
-  level: string
-  levelIndex: number
-  dateTime: string
-  court: string
-  totalSpots: number
-  type: "avulsa" | "recorrente"
-  repeatUntil?: string
-}
+export type { CreateLessonInput }
 
 export async function getAdminLessonsByDate(dateStr: string): Promise<LessonDocument[]> {
   const startPrefix = `${dateStr}T`
