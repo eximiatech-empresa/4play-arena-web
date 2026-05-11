@@ -13,66 +13,21 @@ import {
   arrayRemove,
 } from "firebase/firestore"
 import { db } from "./firestore"
-import { LessonDocumentSchema } from "@/core/entities/lesson"
-import { calculateConsumption, isOffPeak, getCheckInStatus } from "@/core/math/consumption"
+import { mapRawDocToLesson } from "@/core/mappers/lesson.mapper"
+import { mapRawDocToLessonHistory } from "@/core/mappers/lesson-history.mapper"
+import { mapRawDocToTeacherHistory } from "@/core/mappers/teacher-history.mapper"
+import {
+  UserNotFoundError,
+  LessonNotFoundError,
+  LessonFullError,
+  AlreadyEnrolledError,
+  InsufficientBalanceError,
+} from "@/core/errors/exceptions"
+import { ERROS } from "@/core/errors/erros"
 import type { Lesson } from "@/core/entities/lesson"
+import type { LessonHistoryEntry, TeacherLessonHistoryEntry } from "@/core/entities/lesson"
 import type { Transaction } from "@/core/entities/wallet"
 import type { Plan } from "@/core/entities/wallet"
-
-// ─── Queries ──────────────────────────────────────────────────────────────────
-
-function mapDocToLesson(
-  d: import("firebase/firestore").QueryDocumentSnapshot,
-  studentId: string,
-  plan: Plan,
-  now: Date,
-): Lesson | null {
-  const parsed = LessonDocumentSchema.safeParse({ id: d.id, ...d.data() });
-  if (!parsed.success) return null;
-
-  const docData = parsed.data;
-  const lessonDate = new Date(docData.dateTime);
-  const offPeak = isOffPeak(lessonDate);
-
-  let previewConsumption: number;
-  try {
-    previewConsumption = calculateConsumption({ professorId: docData.professorId, plan, date: lessonDate });
-  } catch {
-    previewConsumption = 0;
-  }
-
-  // enrolled = paid and committed to the class
-  const isEnrolled = docData.enrolledStudentIds.includes(studentId);
-  // isTitular = admin-granted priority access window (T-24h)
-  const isTitular = docData.titularIds.includes(studentId) || docData.reservaIds.includes(studentId);
-  const checkInStatus = isEnrolled
-    ? ("done" as const)
-    : getCheckInStatus(lessonDate, isTitular, now);
-
-  return {
-    id: docData.id,
-    professorId: docData.professorId,
-    professorName: docData.professorName,
-    level: docData.level,
-    levelIndex: docData.levelIndex,
-    dateTime: docData.dateTime,
-    court: docData.court,
-    totalSpots: docData.totalSpots,
-    enrolledCount: docData.enrolledStudentIds.length,
-    isEnrolled,
-    checkInStatus,
-    previewConsumption,
-    isOffPeak: offPeak,
-    status: docData.status,
-    wasRescheduled: docData.wasRescheduled ?? false,
-    description: docData.description,
-    titularIds: docData.titularIds,
-    reservaIds: docData.reservaIds,
-    enrolledStudentIds: docData.enrolledStudentIds,
-    checkedInStudentIds: docData.checkedInStudentIds,
-    absentStudentIds: docData.absentStudentIds,
-  } satisfies Lesson;
-}
 
 export async function getLessons(
   studentId: string,
@@ -96,7 +51,7 @@ export async function getLessons(
   const lessons = snap.docs.flatMap((d) => {
     // "finished" lessons are historical; all other statuses are shown with visual badges
     if (d.data().status === "finished") return [];
-    const lesson = mapDocToLesson(d, studentId, plan, now);
+    const lesson = mapRawDocToLesson(d.id, d.data() as Record<string, unknown>, studentId, plan, now);
     return lesson ? [lesson] : [];
   });
 
@@ -127,7 +82,7 @@ export async function getLessonsByDate(dateStr: string, studentId: string, plan:
 
     if (data.status === "finished") return [];
 
-    const lesson = mapDocToLesson(d, studentId, plan, now);
+    const lesson = mapRawDocToLesson(d.id, d.data() as Record<string, unknown>, studentId, plan, now);
 
     if (!lesson) {
       console.error(`❌ Falha ao validar schema da aula ${d.id}.`);
@@ -163,15 +118,15 @@ export async function processCheckIn(
       tx.get(lessonRef),
     ])
 
-    if (!userSnap.exists())   throw new Error("Aluno não encontrado")
-    if (!lessonSnap.exists()) throw new Error("Aula não encontrada")
+    if (!userSnap.exists())   throw new UserNotFoundError(ERROS.USUARIO_NAO_ENCONTRADO)
+    if (!lessonSnap.exists()) throw new LessonNotFoundError(ERROS.AULA_NAO_ENCONTRADA)
 
     const lessonData = lessonSnap.data()
 
     if ((lessonData.enrolledStudentIds?.length ?? 0) >= lessonData.totalSpots)
-      throw new Error("Aula já está lotada")
+      throw new LessonFullError(ERROS.AULA_LOTADA)
     if (lessonData.enrolledStudentIds?.includes(studentId))
-      throw new Error("Inscrição já realizada")
+      throw new AlreadyEnrolledError(ERROS.JA_INSCRITO)
 
     const professorRef  = doc(db, "users", lessonData.professorId)
     const professorSnap = await tx.get(professorRef)
@@ -184,7 +139,7 @@ export async function processCheckIn(
         : playsCost
 
     const currentBalance: number = userSnap.data().walletBalance ?? 0
-    if (currentBalance < actualCost) throw new Error("Saldo insuficiente de Plays")
+    if (currentBalance < actualCost) throw new InsufficientBalanceError(ERROS.SALDO_INSUFICIENTE)
 
     const newStudentBalance = currentBalance - actualCost
     const currentEarnings: number = professorData?.earningsBalance ?? 0
@@ -298,7 +253,7 @@ export async function markStudentAttendance(
 export async function cancelLesson(lessonId: string, reason: string): Promise<void> {
   const lessonRef = doc(db, "lessons", lessonId)
   const lessonSnap = await getDoc(lessonRef)
-  if (!lessonSnap.exists()) throw new Error("Aula não encontrada")
+  if (!lessonSnap.exists()) throw new LessonNotFoundError(ERROS.AULA_NAO_ENCONTRADA)
 
   const lessonData = lessonSnap.data()
   const enrolledIds: string[] = lessonData.enrolledStudentIds ?? []
@@ -380,7 +335,7 @@ export async function cancelLesson(lessonId: string, reason: string): Promise<vo
 export async function finishLesson(lessonId: string): Promise<void> {
   const lessonRef = doc(db, "lessons", lessonId)
   const lessonSnap = await getDoc(lessonRef)
-  if (!lessonSnap.exists()) throw new Error("Aula não encontrada")
+  if (!lessonSnap.exists()) throw new LessonNotFoundError(ERROS.AULA_NAO_ENCONTRADA)
 
   const lessonData = lessonSnap.data()
   const enrolledIds: string[] = lessonData.enrolledStudentIds ?? []
@@ -412,7 +367,7 @@ export async function finishLesson(lessonId: string): Promise<void> {
 export async function rescheduleLesson(lessonId: string, newDateTimeISO: string): Promise<void> {
   const lessonRef = doc(db, "lessons", lessonId)
   const lessonSnap = await getDoc(lessonRef)
-  if (!lessonSnap.exists()) throw new Error("Aula não encontrada")
+  if (!lessonSnap.exists()) throw new LessonNotFoundError(ERROS.AULA_NAO_ENCONTRADA)
 
   const lessonData = lessonSnap.data()
   const enrolledIds: string[] = lessonData.enrolledStudentIds ?? []
@@ -447,22 +402,6 @@ export async function rescheduleLesson(lessonId: string, newDateTimeISO: string)
 
 // ─── Student lesson history ───────────────────────────────────────────────────
 
-export interface LessonHistoryEntry {
-  id: string
-  professorName: string
-  level: string
-  dateTime: string
-  court: string
-  status: import("@/core/entities/lesson").LessonStatus
-  wasRescheduled: boolean
-  cancellationReason?: string | null
-  rescheduledToId?: string
-  checkedInStudentIds: string[]
-  absentStudentIds: string[]
-  /** Plays effectively deducted — sourced from the debit transaction. Null if no transaction found. */
-  playsSpent: number | null
-}
-
 // Fetches every lesson the student enrolled in, plus the cost from transactions.
 // Sorting is done client-side to avoid a composite index on array-contains + orderBy.
 // Transaction fetch is isolated so a missing index or empty result never blocks lesson display.
@@ -494,43 +433,12 @@ export async function getStudentLessonHistory(studentId: string): Promise<Lesson
   }
 
   return lessonsSnap.docs.flatMap((d) => {
-    const parsed = LessonDocumentSchema.safeParse({ id: d.id, ...d.data() })
-    if (!parsed.success) return []
-    const l = parsed.data
-    return [
-      {
-        id: l.id,
-        professorName: l.professorName,
-        level: l.level,
-        dateTime: l.dateTime,
-        court: l.court,
-        status: l.status,
-        wasRescheduled: l.wasRescheduled,
-        cancellationReason: l.cancellationReason,
-        rescheduledToId: l.rescheduledToId,
-        checkedInStudentIds: l.checkedInStudentIds,
-        absentStudentIds: l.absentStudentIds,
-        playsSpent: playsByLesson[l.id] ?? null,
-      } satisfies LessonHistoryEntry,
-    ]
+    const entry = mapRawDocToLessonHistory(d.id, d.data() as Record<string, unknown>, playsByLesson)
+    return entry ? [entry] : []
   })
 }
 
 // ─── Teacher lesson history ───────────────────────────────────────────────────
-
-export interface TeacherLessonHistoryEntry {
-  id: string
-  level: string
-  dateTime: string
-  court: string
-  status: "finished" | "cancelled"
-  cancellationReason?: string | null
-  totalEnrolled: number
-  presentStudents: Array<{ id: string; name: string | null }>
-  absentCount: number
-  pendingCount: number
-  totalEarned: number
-}
 
 // Fetches every finished/cancelled lesson for the teacher, enriched with
 // attendance data and earnings from teacher_transactions.
@@ -570,36 +478,8 @@ export async function getTeacherLessonHistory(teacherId: string): Promise<Teache
   }
 
   const entries = lessonsSnap.docs.flatMap((d) => {
-    const parsed = LessonDocumentSchema.safeParse({ id: d.id, ...d.data() })
-    if (!parsed.success) return []
-    const l = parsed.data
-    if (l.status !== "finished" && l.status !== "cancelled") return []
-
-    const namesMap = namesByLesson[l.id] ?? new Map<string, string | null>()
-    const presentStudents = l.checkedInStudentIds.map((sid) => ({
-      id: sid,
-      name: namesMap.get(sid) ?? null,
-    }))
-    const pending = Math.max(
-      0,
-      l.enrolledStudentIds.length - l.checkedInStudentIds.length - l.absentStudentIds.length,
-    )
-
-    return [
-      {
-        id: l.id,
-        level: l.level,
-        dateTime: l.dateTime,
-        court: l.court,
-        status: l.status as "finished" | "cancelled",
-        cancellationReason: l.cancellationReason,
-        totalEnrolled: l.enrolledStudentIds.length,
-        presentStudents,
-        absentCount: l.absentStudentIds.length,
-        pendingCount: pending,
-        totalEarned: earnedByLesson[l.id] ?? 0,
-      } satisfies TeacherLessonHistoryEntry,
-    ]
+    const entry = mapRawDocToTeacherHistory(d.id, d.data() as Record<string, unknown>, earnedByLesson, namesByLesson)
+    return entry ? [entry] : []
   })
 
   return entries.sort((a, b) => b.dateTime.localeCompare(a.dateTime))

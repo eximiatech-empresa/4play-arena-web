@@ -1,9 +1,8 @@
-// src/features/wallet/hooks/use-wallet.ts
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getFirebaseAuth } from "@/lib/firebase/auth"
 import { getStudentTransactions, processPlanPurchase } from "@/lib/firebase/transactions"
 import { PLANS } from "@/core/constants/professors"
-import { PLAN_MULTIPLIERS } from "@/core/math/consumption"
+import { calculateTotalPlays, normalizePlanExpiresAt } from "@/core/math/wallet-balance"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import type { Wallet, Plan } from "@/core/entities/wallet"
 import type { StudentUser } from "@/core/entities/user"
@@ -22,23 +21,14 @@ export function useWallet() {
       const transactions = await getStudentTransactions(student.uid)
       const planData = PLANS[student.currentPlanId]
 
-      const totalPlays =
-        transactions
-          .filter((t) => t.type === "purchase" || t.type === "credit")
-          .reduce((sum, t) => sum + t.amount, 0) ||
-        planData.hours * PLAN_MULTIPLIERS[student.currentPlanId]
-
       return {
         id: student.uid,
         studentId: student.uid,
         balance: student.walletBalance,
-        totalPlays,
+        totalPlays: calculateTotalPlays(transactions, student.currentPlanId),
         plan: student.currentPlanId,
         planValue: planData.price,
-        expiresAt:
-          typeof student.planExpiresAt === "string"
-            ? student.planExpiresAt
-            : new Date((student.planExpiresAt as { seconds: number }).seconds * 1000).toISOString(),
+        expiresAt: normalizePlanExpiresAt(student.planExpiresAt),
         transactions,
       }
     },
@@ -55,7 +45,7 @@ export function usePurchasePlan() {
       planId,
       playsAmount,
       expiresInDays,
-      currentBalance
+      currentBalance,
     }: {
       planId: Plan
       playsAmount: number

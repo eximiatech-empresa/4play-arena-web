@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { getTeacherWallet } from "@/lib/firebase/teacher-wallet"
+import { calculateTeacherInsights } from "@/core/math/teacher-insights"
 import type { TeacherTransaction } from "@/core/entities/teacher-wallet"
 
 export const TEACHER_WALLET_QUERY_KEY = ["teacher-wallet"] as const
@@ -20,29 +21,7 @@ export function useTeacherWallet(filter: TimeFilter = "this_year") {
 
   const balance = result.data?.balance ?? 0
   const transactions: TeacherTransaction[] = result.data?.transactions ?? []
-
-  // Compute yearlyEarnings from all-time data is expensive; derive from filtered transactions
-  const yearlyEarnings = transactions.reduce((sum, tx) => sum + tx.amount, 0)
-
-  // Derive top students and most missed from filtered transactions
-  const studentCheckIns: Record<string, { name: string; count: number }> = {}
-  for (const tx of transactions) {
-    if (tx.type === "CHECK_IN_CREDIT") {
-      const key = tx.studentId
-      if (!studentCheckIns[key]) studentCheckIns[key] = { name: tx.studentName ?? tx.studentId, count: 0 }
-      studentCheckIns[key].count++
-    }
-  }
-  const topStudents = Object.values(studentCheckIns)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5)
-
-  const insights = {
-    topStudents,
-    mostMissed: [],
-    monthlyComparison: { currentMonthClasses: 0, lastMonthClasses: 0, percentageChange: 0 },
-    yearlyEarnings,
-  }
+  const insights = calculateTeacherInsights(transactions)
 
   return {
     isLoading: result.isLoading,

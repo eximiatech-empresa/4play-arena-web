@@ -8,6 +8,7 @@ import {
   rescheduleLesson,
   finishLesson,
 } from "@/lib/firebase/booking"
+import { applyAttendanceChange } from "@/core/math/attendance-calculator"
 import type { Lesson } from "@/core/entities/lesson"
 
 export function useMarkAttendance() {
@@ -29,22 +30,13 @@ export function useMarkAttendance() {
         if (!old) return old
         return old.map((l) => {
           if (l.id !== lessonId) return l
-
-          let checkedIn = [...l.checkedInStudentIds]
-          let absent = [...l.absentStudentIds]
-
-          if (status === "present") {
-            checkedIn = [...new Set([...checkedIn, studentId])]
-            absent = absent.filter((id) => id !== studentId)
-          } else if (status === "absent") {
-            absent = [...new Set([...absent, studentId])]
-            checkedIn = checkedIn.filter((id) => id !== studentId)
-          } else {
-            checkedIn = checkedIn.filter((id) => id !== studentId)
-            absent = absent.filter((id) => id !== studentId)
-          }
-
-          return { ...l, checkedInStudentIds: checkedIn, absentStudentIds: absent }
+          const updated = applyAttendanceChange(
+            l.checkedInStudentIds,
+            l.absentStudentIds,
+            studentId,
+            status,
+          )
+          return { ...l, ...updated }
         })
       })
     },

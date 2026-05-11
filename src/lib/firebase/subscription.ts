@@ -12,6 +12,7 @@ import {
 import { db } from "./firestore"
 import { SubscriptionDocumentSchema } from "@/core/entities/subscription"
 import type { SubscriptionDocument } from "@/core/entities/subscription"
+import { validateCancelSubscription } from "@/core/usecases/subscriptions/cancel-subscription"
 
 type CreateSubscriptionInput = Omit<SubscriptionDocument, "id" | "createdAt" | "updatedAt">
 
@@ -65,9 +66,11 @@ export async function cancelSubscription(subscriptionId: string): Promise<void> 
   const subscriptionRef = doc(db, "subscriptions", subscriptionId)
   const snap = await getDoc(subscriptionRef)
 
-  if (!snap.exists()) throw new Error("Assinatura não encontrada")
-  if (snap.data().cancelAtPeriodEnd === true) throw new Error("Cancelamento já solicitado")
-  if (snap.data().status === "canceled") throw new Error("Assinatura já cancelada")
+  validateCancelSubscription({
+    exists: snap.exists(),
+    cancelAtPeriodEnd: snap.exists() ? snap.data().cancelAtPeriodEnd === true : false,
+    status: snap.exists() ? (snap.data().status as string) : "",
+  })
 
   await updateDoc(subscriptionRef, {
     cancelAtPeriodEnd: true,

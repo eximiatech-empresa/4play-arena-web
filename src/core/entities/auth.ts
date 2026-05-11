@@ -37,8 +37,17 @@ export const OnboardingSchema = z.object({
   originalTeacherId: z.string().min(1, "Selecione um professor"),
 })
 
+export const PasswordChangeSchema = z.object({
+  newPassword: z
+    .string()
+    .min(6, "A senha deve ter no mínimo 6 caracteres")
+    .regex(/[A-Z]/, "Deve conter ao menos uma letra maiúscula")
+    .regex(/[0-9]/, "Deve conter ao menos um número"),
+})
+
 export type LoginInput = z.infer<typeof LoginSchema>
 export type RegisterInput = z.infer<typeof RegisterSchema>
 export type OnboardingStep2Input = z.infer<typeof OnboardingStep2Schema>
 export type OnboardingStep3Input = z.infer<typeof OnboardingStep3Schema>
 export type OnboardingInput = z.infer<typeof OnboardingSchema>
+export type PasswordChangeInput = z.infer<typeof PasswordChangeSchema>

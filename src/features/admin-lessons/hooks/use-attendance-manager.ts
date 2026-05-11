@@ -4,21 +4,11 @@ import { useState, useMemo } from "react"
 import { toast } from "sonner"
 import { useStudents } from "@/features/users-management/hooks/use-students"
 import { useMarkAttendance } from "@/features/class-management/hooks/use-class-management"
+import { getAttendanceStatus, computeAttendanceSummary } from "@/core/math/attendance-calculator"
+import type { AttendanceStatus, AttendanceStudent, AttendanceSummary } from "@/core/entities/attendance"
 import type { LessonDocument } from "@/core/entities/lesson"
 
-export type AttendanceStatus = "present" | "absent" | "pending"
-
-export interface AttendanceStudent {
-  id: string
-  name: string
-  status: AttendanceStatus
-}
-
-export interface AttendanceSummary {
-  presentCount: number
-  absentCount: number
-  pendingCount: number
-}
+export type { AttendanceStatus, AttendanceStudent, AttendanceSummary }
 
 export interface UseAttendanceManagerResult {
   students: AttendanceStudent[]
@@ -43,11 +33,11 @@ export function useAttendanceManager(lesson: LessonDocument): UseAttendanceManag
   const students = useMemo<AttendanceStudent[]>(() => {
     return lesson.enrolledStudentIds.map((id) => {
       const info = studentsData.find((s) => s.id === id)
-      const persistedStatus: AttendanceStatus = lesson.checkedInStudentIds.includes(id)
-        ? "present"
-        : lesson.absentStudentIds.includes(id)
-        ? "absent"
-        : "pending"
+      const persistedStatus = getAttendanceStatus(
+        id,
+        lesson.checkedInStudentIds,
+        lesson.absentStudentIds,
+      )
 
       return {
         id,
@@ -56,16 +46,12 @@ export function useAttendanceManager(lesson: LessonDocument): UseAttendanceManag
           : isLoadingStudents
           ? "Carregando..."
           : `Aluno (${id.slice(0, 6)}…)`,
-        status: (localAttendance[id] ?? persistedStatus) as AttendanceStatus,
+        status: localAttendance[id] ?? persistedStatus,
       }
     })
   }, [lesson, studentsData, isLoadingStudents, localAttendance])
 
-  const summary: AttendanceSummary = {
-    presentCount: students.filter((s) => s.status === "present").length,
-    absentCount:  students.filter((s) => s.status === "absent").length,
-    pendingCount: students.filter((s) => s.status === "pending").length,
-  }
+  const summary = computeAttendanceSummary(students)
 
   function handleMark(studentId: string, status: AttendanceStatus) {
     setLocalAttendance((prev) => ({ ...prev, [studentId]: status }))

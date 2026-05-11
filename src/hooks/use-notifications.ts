@@ -1,22 +1,18 @@
 "use client"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { collection, query, where, getDocs, doc, updateDoc } from "firebase/firestore"
-import { db } from "@/lib/firebase/firestore"
-import type { Notification } from "@/core/entities/notification"
 
-// Single-field query (no composite index required); read === false filtered client-side
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import type { Notification } from "@/core/entities/notification"
+import {
+  getUnreadNotifications,
+  markNotificationRead,
+} from "@/lib/notifications/notifications-service"
+
 export function useNotifications(userId: string | undefined) {
   return useQuery({
     queryKey: ["notifications", userId],
-    queryFn: async (): Promise<Notification[]> => {
-      if (!userId) return []
-      const snap = await getDocs(
-        query(collection(db, "notifications"), where("userId", "==", userId)),
-      )
-      return snap.docs
-        .map((d) => ({ id: d.id, ...d.data() } as Notification))
-        .filter((n) => !n.read)
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    queryFn: (): Promise<Notification[]> => {
+      if (!userId) return Promise.resolve([])
+      return getUnreadNotifications(userId)
     },
     enabled: !!userId,
     staleTime: 30_000,
@@ -27,11 +23,8 @@ export function useMarkNotificationRead() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (notificationId: string) =>
-      updateDoc(doc(db, "notifications", notificationId), { read: true }),
-
+    mutationFn: (notificationId: string) => markNotificationRead(notificationId),
     onSuccess: (_data, notificationId) => {
-      // Optimistically remove from local cache without full refetch
       queryClient.setQueriesData<Notification[]>(
         { queryKey: ["notifications"] },
         (old) => old?.filter((n) => n.id !== notificationId) ?? old,

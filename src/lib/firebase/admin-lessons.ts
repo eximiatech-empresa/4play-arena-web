@@ -11,6 +11,7 @@ import {
 import { db } from "./firestore"
 import { LessonDocumentSchema } from "@/core/entities/lesson"
 import type { LessonDocument, CreateLessonInput } from "@/core/entities/lesson"
+import { buildDateList } from "@/core/usecases/lessons/create-lesson"
 
 export type { CreateLessonInput }
 
@@ -95,22 +96,3 @@ export async function deleteLesson(lessonId: string): Promise<void> {
   await deleteDoc(doc(db, "lessons", lessonId))
 }
 
-function buildDateList(input: CreateLessonInput): string[] {
-  if (input.type === "avulsa") return [input.dateTime]
-
-  const dates: string[] = []
-  const start = new Date(input.dateTime)
-  const limit = input.repeatUntil ? new Date(input.repeatUntil) : start
-  const maxWeeks = 400
-
-  let current = new Date(start)
-  let count = 0
-
-  while (current <= limit && count < maxWeeks) {
-    dates.push(current.toISOString())
-    current = new Date(current.getTime() + 7 * 24 * 60 * 60 * 1000)
-    count++
-  }
-
-  return dates
-}

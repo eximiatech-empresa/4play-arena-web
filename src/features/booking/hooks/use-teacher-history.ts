@@ -1,7 +1,8 @@
 "use client"
 import { useQuery } from "@tanstack/react-query"
 import { useCurrentUser } from "@/hooks/use-current-user"
-import { getTeacherLessonHistory, type TeacherLessonHistoryEntry } from "@/lib/firebase/booking"
+import { getTeacherLessonHistory } from "@/lib/firebase/booking"
+import type { TeacherLessonHistoryEntry } from "@/core/entities/lesson"
 
 export type { TeacherLessonHistoryEntry }
 export const TEACHER_HISTORY_QUERY_KEY = ["teacher-history"] as const

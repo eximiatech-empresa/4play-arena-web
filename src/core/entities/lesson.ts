@@ -126,3 +126,37 @@ export interface CreateLessonInput {
   type: "avulsa" | "recorrente"
   repeatUntil?: string
 }
+
+// ─── Lesson history entries ────────────────────────────────────────────────────
+// Used by student history page and teacher history page.
+// Enriched at read time from transactions; never stored in Firestore.
+
+export interface LessonHistoryEntry {
+  id: string
+  professorName: string
+  level: string
+  dateTime: string
+  court: string
+  status: LessonStatus
+  wasRescheduled: boolean
+  cancellationReason?: string | null
+  rescheduledToId?: string
+  checkedInStudentIds: string[]
+  absentStudentIds: string[]
+  /** Plays effectively deducted — sourced from the debit transaction. Null if no transaction found. */
+  playsSpent: number | null
+}
+
+export interface TeacherLessonHistoryEntry {
+  id: string
+  level: string
+  dateTime: string
+  court: string
+  status: "finished" | "cancelled"
+  cancellationReason?: string | null
+  totalEnrolled: number
+  presentStudents: Array<{ id: string; name: string | null }>
+  absentCount: number
+  pendingCount: number
+  totalEarned: number
+}
