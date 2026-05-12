@@ -1,20 +1,21 @@
-import { PLANS } from "@/core/constants/professors"
-import { PLAN_MULTIPLIERS } from "@/core/constants/plan-pricing"
+// src/core/math/wallet-balance.ts
+
+import { PLAN_CONFIGS } from "@/core/constants/plan-pricing"
 import type { Transaction, Plan } from "@/core/entities/wallet"
 
 /**
  * Derives the student's total plays from their transaction history.
  *
  * Sums all `purchase` and `credit` transactions. Falls back to the plan's
- * default hours × plan multiplier when no transactions exist yet.
+ * default totalPlays when no transactions exist yet.
  */
 export function calculateTotalPlays(transactions: Transaction[], planId: Plan): number {
-  const planData = PLANS[planId]
+  const planData = PLAN_CONFIGS[planId]
   return (
     transactions
       .filter((t) => t.type === "purchase" || t.type === "credit")
       .reduce((sum, t) => sum + t.amount, 0) ||
-    planData.hours * PLAN_MULTIPLIERS[planId]
+    planData.totalPlays
   )
 }
 

@@ -2,7 +2,7 @@ import { z } from "zod"
 
 // ─── Firestore document schema ────────────────────────────────────────────────
 // Stored in the `lessons` collection. Contains only raw, persisted data.
-// Computed fields (isEnrolled, checkInStatus, previewConsumption, isOffPeak)
+// Computed fields (isEnrolled, checkInStatus, previewConsumption, isPeak)
 // are derived at read time in the data-source layer and never written to Firestore.
 
 export const LessonStatusSchema = z.enum(["scheduled", "finished", "cancelled"])
@@ -63,7 +63,13 @@ export const LessonSchema = z.object({
   isEnrolled: z.boolean(),
   checkInStatus: CheckInStatusSchema,
   previewConsumption: z.number().nonnegative(),
-  isOffPeak: z.boolean(),
+  /** True when the class falls inside the peak window (18h–20h). */
+  isPeak: z.boolean(),
+  /**
+   * @deprecated Renamed to isPeak. Retained for backward-compat with components
+   * that have not been migrated yet.
+   */
+  isOffPeak: z.boolean().optional(),
   status: LessonStatusSchema,
   wasRescheduled: z.boolean().default(false),
   description: z.string().optional(),

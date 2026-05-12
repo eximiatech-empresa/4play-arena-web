@@ -1,4 +1,6 @@
-import { getProfessorById, PEAK_WINDOW, type Plan } from "@/core/constants/professors"
+// src/core/math/consumption.ts
+
+import { getProfessorById, PEAK_WINDOW } from "@/core/constants/professors"
 import { CheckInStatus } from "../entities/lesson"
 import {
   MS_PER_HOUR,
@@ -6,55 +8,78 @@ import {
   CHECK_IN_OPEN_HOURS,
   CHECK_IN_ENROLLED_HOURS,
   CANCEL_REFUND_MIN_HOURS,
-  OFF_PEAK_MULTIPLIER,
+  PEAK_MULTIPLIER,
+  RESERVE_MULTIPLIER,
 } from "@/core/constants/booking-rules"
-import { PLAN_MULTIPLIERS } from "@/core/constants/plan-pricing"
 import { ProfessorNotFoundError } from "@/core/errors/exceptions"
 import { ERROS } from "@/core/errors/erros"
 
-export { PLAN_MULTIPLIERS }
+// ─── Peak / off-peak helpers ──────────────────────────────────────────────────
 
-export function isOffPeak(date: Date): boolean {
+/**
+ * Returns true when the class falls inside the peak window (18:00 ≤ hour < 20:00).
+ */
+export function isPeakHour(date: Date): boolean {
   const hour = date.getHours()
-  return hour < PEAK_WINDOW.startHour || hour >= PEAK_WINDOW.endHour
+  return hour >= PEAK_WINDOW.startHour && hour < PEAK_WINDOW.endHour
 }
 
-export function calculateConsumption({
+/**
+ * Backward-compat alias — kept so existing tests continue to pass.
+ * Prefer `isPeakHour` for new code.
+ */
+export function isOffPeak(date: Date): boolean {
+  return !isPeakHour(date)
+}
+
+// ─── Plays calculation ────────────────────────────────────────────────────────
+
+/**
+ * Calculates the integer number of Plays consumed for a single check-in.
+ *
+ * Order of operations (per spec §4):
+ *  1. basePlays from professor table
+ *  2. × PEAK_MULTIPLIER (1.05) if isPeak
+ *  3. × RESERVE_MULTIPLIER (1.10) if isReserva
+ *  4. round (Math.round) or ceil (Math.ceil) depending on professor's roundingRule
+ */
+export function calculatePlaysConsumed({
   professorId,
-  plan,
-  date,
+  isPeak,
+  isReserva,
 }: {
   professorId: string
-  plan: Plan
-  date: Date
+  isPeak: boolean
+  isReserva: boolean
 }): number {
-  const professor = getProfessorById(professorId)
-  if (!professor) {
+  const config = getProfessorById(professorId)
+  if (!config) {
     throw new ProfessorNotFoundError(ERROS.PROFESSOR_NAO_ENCONTRADO(professorId))
   }
 
-  const baseHours = professor.consumption[plan]
-  const discountedHours = isOffPeak(date) ? baseHours * OFF_PEAK_MULTIPLIER : baseHours
+  let raw = config.basePlays
 
-  const finalPlays = discountedHours * PLAN_MULTIPLIERS[plan]
+  if (isPeak) raw *= PEAK_MULTIPLIER
+  if (isReserva) raw *= RESERVE_MULTIPLIER
 
-  if (professor.isPremium) {
-    return Math.ceil(finalPlays * 100) / 100
-  }
-  return Math.round(finalPlays * 100) / 100
+  return config.roundingRule === "ceil" ? Math.ceil(raw) : Math.round(raw)
 }
+
+// ─── Level eligibility ────────────────────────────────────────────────────────
 
 export function isLevelEligible(
   studentLevelIndex: number,
-  classLevelIndex: number
+  classLevelIndex: number,
 ): boolean {
   return studentLevelIndex >= classLevelIndex
 }
 
+// ─── Check-in status ──────────────────────────────────────────────────────────
+
 export function getCheckInStatus(
   classDateTime: Date,
   isEnrolled: boolean,
-  now = new Date()
+  now = new Date(),
 ): CheckInStatus {
   const hoursToClass = (classDateTime.getTime() - now.getTime()) / MS_PER_HOUR
 
@@ -64,7 +89,24 @@ export function getCheckInStatus(
   return "not_open"
 }
 
+// ─── Cancellation guard ───────────────────────────────────────────────────────
+
 export function canCancelCheckIn(classDateTime: Date, now = new Date()): boolean {
   const hoursToClass = (classDateTime.getTime() - now.getTime()) / MS_PER_HOUR
   return hoursToClass >= CANCEL_REFUND_MIN_HOURS
 }
+
+// ─── Backward-compat shim ─────────────────────────────────────────────────────
+// Features outside src/core/ still import PLAN_MULTIPLIERS from this module.
+// In the new Plays model each plan's total plays is stored directly in PLAN_CONFIGS,
+// so the multiplier is effectively 1.0 for all plans when used in display code.
+// Do NOT use for actual consumption calculations — call calculatePlaysConsumed() instead.
+
+import type { Plan } from "@/core/entities/wallet"
+
+/** @deprecated Use PLAN_CONFIGS from @/core/constants/plan-pricing */
+export const PLAN_MULTIPLIERS: Record<Plan, number> = {
+  mensal: 1.0,
+  trimestral: 1.0,
+  semestral: 1.0,
+} as const

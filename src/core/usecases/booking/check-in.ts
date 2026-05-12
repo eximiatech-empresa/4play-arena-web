@@ -1,3 +1,5 @@
+// src/core/usecases/booking/check-in.ts
+
 import { getCheckInStatus } from "@/core/math/consumption"
 import { CheckInNotOpenError, LessonClosedError, NotAuthenticatedError } from "@/core/errors/exceptions"
 import { ERROS } from "@/core/errors/erros"
@@ -9,7 +11,8 @@ type CheckInFn = (
   consumption: number,
   professorName: string,
   level: string,
-  isOffPeak: boolean,
+  isPeak: boolean,
+  isReserva: boolean,
 ) => Promise<void>
 
 export async function executeCheckIn(
@@ -23,12 +26,15 @@ export async function executeCheckIn(
   if (status === "not_open") throw new CheckInNotOpenError(ERROS.CHECK_IN_NAO_LIBERADO)
   if (status === "closed") throw new LessonClosedError(ERROS.AULA_ENCERRADA)
 
+  const isReserva = !lesson.titularIds.includes(userId)
+
   await checkInFn(
     userId,
     lesson.id,
     lesson.previewConsumption,
     lesson.professorName,
     lesson.level,
-    lesson.isOffPeak,
+    lesson.isPeak,
+    isReserva,
   )
 }

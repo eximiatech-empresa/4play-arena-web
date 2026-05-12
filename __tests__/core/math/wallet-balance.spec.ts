@@ -19,18 +19,18 @@ const criarTransacao = (overrides: Partial<Transaction>): Transaction => ({
 
 // ─── calculateTotalPlays ──────────────────────────────────────────────────────
 // Lógica: soma purchase + credit; se soma = 0 (falsy), usa fallback do plano.
-// Fallbacks (hours × multiplier):
-//   mensal:     8h × 1.2 = 9.6
-//   trimestral: 24h × 1.0 = 24
-//   semestral:  48h × 0.8 = 38.4
+// Fallbacks (modelo Plays — PLAN_CONFIGS[plan].totalPlays):
+//   mensal:     80 Plays
+//   trimestral: 240 Plays
+//   semestral:  480 Plays
 
 describe('calculateTotalPlays', () => {
   it('deve somar apenas transações de tipo "purchase" e "credit", ignorando débitos', () => {
     // Arrange
     const transacoes: Transaction[] = [
-      criarTransacao({ id: 'tx-1', type: 'purchase', amount: 24 }),
-      criarTransacao({ id: 'tx-2', type: 'credit', amount: 8 }),
-      criarTransacao({ id: 'tx-3', type: 'debit', amount: -3 }),    // ignorado
+      criarTransacao({ id: 'tx-1', type: 'purchase', amount: 240 }),
+      criarTransacao({ id: 'tx-2', type: 'credit', amount: 10 }),
+      criarTransacao({ id: 'tx-3', type: 'debit', amount: -13 }),    // ignorado
       criarTransacao({ id: 'tx-4', type: 'adjustment', amount: 0 }), // ignorado
     ]
 
@@ -38,45 +38,40 @@ describe('calculateTotalPlays', () => {
     const resultado = calculateTotalPlays(transacoes, 'trimestral')
 
     // Assert
-    expect(resultado).toBe(32) // 24 + 8
+    expect(resultado).toBe(250) // 240 + 10
   })
 
-  it('deve usar o fallback do plano trimestral (24h × 1.0 = 24) quando não há transações', () => {
-    // Act
+  it('deve usar o fallback do plano trimestral (240 Plays) quando não há transações', () => {
     const resultado = calculateTotalPlays([], 'trimestral')
 
-    // Assert
-    expect(resultado).toBe(24)
+    expect(resultado).toBe(240)
   })
 
-  it('deve usar o fallback do plano mensal (8h × 1.2 = 9.6) quando não há transações', () => {
-    // Act
+  it('deve usar o fallback do plano mensal (80 Plays) quando não há transações', () => {
     const resultado = calculateTotalPlays([], 'mensal')
 
-    // Assert
-    expect(resultado).toBe(9.6)
+    expect(resultado).toBe(80)
   })
 
-  it('deve usar o fallback do plano semestral (48h × 0.8 ≈ 38.4) quando não há transações', () => {
-    // 48 * 0.8 = 38.400000000000006 em IEEE 754 → usa toBeCloseTo para tolerância float
+  it('deve usar o fallback do plano semestral (480 Plays) quando não há transações', () => {
     const resultado = calculateTotalPlays([], 'semestral')
 
-    expect(resultado).toBeCloseTo(38.4)
+    expect(resultado).toBe(480)
   })
 
   it('deve cair no fallback quando há apenas débitos (soma de purchase+credit = 0, que é falsy)', () => {
     // Caso subtil: lista com transações mas nenhuma do tipo purchase/credit
     // → filter retorna [] → reduce retorna 0 → 0 é falsy → usa fallback do plano
     const transacoes: Transaction[] = [
-      criarTransacao({ id: 'tx-1', type: 'debit', amount: -3 }),
+      criarTransacao({ id: 'tx-1', type: 'debit', amount: -13 }),
       criarTransacao({ id: 'tx-2', type: 'expiration', amount: -10 }),
     ]
 
-    // Act — plano trimestral: 24h × 1.0 = 24
+    // Act — plano trimestral: 240 Plays
     const resultado = calculateTotalPlays(transacoes, 'trimestral')
 
     // Assert
-    expect(resultado).toBe(24)
+    expect(resultado).toBe(240)
   })
 })
 

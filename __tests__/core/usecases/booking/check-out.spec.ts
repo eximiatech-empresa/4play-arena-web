@@ -24,7 +24,7 @@ const criarAulaMock = (overrides: Partial<Lesson> = {}): Lesson => ({
   isEnrolled: true,
   checkInStatus: 'done',
   previewConsumption: 8,
-  isOffPeak: false,
+  isPeak: false,
   status: 'scheduled',
   wasRescheduled: false,
   titularIds: [],

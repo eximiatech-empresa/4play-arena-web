@@ -1,9 +1,9 @@
-import { PLANS } from "@/core/constants/professors"
+import { PLAN_CONFIGS } from "@/core/constants/plan-pricing"
 import type { StudentPlan } from "@/core/entities/user"
 
 export function calculatePlanExpiryDate(plan: StudentPlan): string {
   const expiry = new Date()
-  expiry.setDate(expiry.getDate() + PLANS[plan].days)
+  expiry.setDate(expiry.getDate() + PLAN_CONFIGS[plan].validityDays)
   return expiry.toISOString()
 }
 

@@ -20,6 +20,10 @@ export const ERROS = {
   INPUT_AULA_INVALIDO: "Dados da aula inválidos.",
   RECORRENCIA_INVALIDA: "A data de término deve ser posterior à data de início da aula.",
 
+  // Wallet / Plays
+  PLANO_EXPIRADO: "Seu plano de Plays expirou. Renove para realizar o check-in.",
+  TURMA_LOTADA: "Esta turma já atingiu o número máximo de alunos.",
+
   // Subscriptions
   ASSINATURA_NAO_ENCONTRADA: "Assinatura não encontrada.",
   ASSINATURA_JA_CANCELADA: "Assinatura já cancelada.",

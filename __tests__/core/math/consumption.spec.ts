@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
+  isPeakHour,
   isOffPeak,
-  calculateConsumption,
+  calculatePlaysConsumed,
   isLevelEligible,
   getCheckInStatus,
   canCancelCheckIn,
@@ -17,11 +18,33 @@ const criarDataComHora = (hora: number): Date => {
   return d
 }
 
+// ─── isPeakHour ───────────────────────────────────────────────────────────────
+// Janela de pico: 18h ≤ hora < 20h (inclusivo em 18, exclusivo em 20).
+// BVA nas horas 17, 18, 19, 20.
+
+describe('isPeakHour', () => {
+  it('deve retornar false para hora 17 (imediatamente antes do pico)', () => {
+    expect(isPeakHour(criarDataComHora(17))).toBe(false)
+  })
+
+  it('deve retornar true para hora 18 (início do pico, inclusivo)', () => {
+    expect(isPeakHour(criarDataComHora(18))).toBe(true)
+  })
+
+  it('deve retornar true para hora 19 (dentro do pico)', () => {
+    expect(isPeakHour(criarDataComHora(19))).toBe(true)
+  })
+
+  it('deve retornar false para hora 20 (fim do pico, exclusivo — primeira hora fora do pico)', () => {
+    expect(isPeakHour(criarDataComHora(20))).toBe(false)
+  })
+})
+
 // ─── isOffPeak ────────────────────────────────────────────────────────────────
-// Granularidade: hora inteira (getHours). BVA aplicado às horas 17, 18, 19, 20.
+// Alias backward-compat: isOffPeak = !isPeakHour. Garante que a inversão está correta.
 
 describe('isOffPeak', () => {
-  it('deve retornar true para hora 17 (imediatamente antes do pico que começa às 18h)', () => {
+  it('deve retornar true para hora 17 (fora do pico)', () => {
     expect(isOffPeak(criarDataComHora(17))).toBe(true)
   })
 
@@ -33,56 +56,74 @@ describe('isOffPeak', () => {
     expect(isOffPeak(criarDataComHora(19))).toBe(false)
   })
 
-  it('deve retornar true para hora 20 (fim do pico, exclusive — primeira hora off-peak)', () => {
+  it('deve retornar true para hora 20 (fim do pico, exclusivo)', () => {
     expect(isOffPeak(criarDataComHora(20))).toBe(true)
   })
 })
 
-// ─── calculateConsumption ─────────────────────────────────────────────────────
+// ─── calculatePlaysConsumed ───────────────────────────────────────────────────
+// Ordem obrigatória (spec §4):
+//   1. basePlays do professor
+//   2. × 1.05 se isPeak
+//   3. × 1.10 se isReserva
+//   4. round (Math.round) ou ceil (Math.ceil) conforme professor
+//
+// Exemplos validados contra a seção 4 do documento de regras de negócio.
 
-describe('calculateConsumption', () => {
-  it('deve calcular consumo com arredondamento normal para Paulinho (não-premium) trimestral em pico', () => {
-    // Arrange
-    const dataPico = criarDataComHora(19)
-    // Paulinho trimestral: 0.85h × multiplicador 1.0, sem desconto off-peak
-    const esperado = Math.round(0.85 * 1.0 * 100) / 100
+describe('calculatePlaysConsumed', () => {
+  // ── Biel (basePlays=13, roundingRule=round) ──────────────────────────────────
 
-    // Act
-    const resultado = calculateConsumption({ professorId: 'paulinho', plan: 'trimestral', date: dataPico })
-
-    // Assert
-    expect(resultado).toBe(esperado)
+  it('Biel / titular / off-peak: 13 × 1 × 1 = 13 → round → 13', () => {
+    expect(calculatePlaysConsumed({ professorId: 'biel', isPeak: false, isReserva: false })).toBe(13)
   })
 
-  it('deve aplicar desconto off-peak (×0.95) e arredondamento ceiling para Marília (premium) mensal', () => {
-    // Arrange
-    const dataOffPeak = criarDataComHora(17)
-    // Marília mensal: 1.5h × 0.95 (off-peak) × 1.2 (multiplicador mensal) — ceiling
-    const esperado = Math.ceil(1.5 * 0.95 * 1.2 * 100) / 100
-
-    // Act
-    const resultado = calculateConsumption({ professorId: 'marilia', plan: 'mensal', date: dataOffPeak })
-
-    // Assert
-    expect(resultado).toBe(esperado)
+  it('Biel / titular / pico: 13 × 1.05 = 13.65 → round → 14', () => {
+    expect(calculatePlaysConsumed({ professorId: 'biel', isPeak: true, isReserva: false })).toBe(14)
   })
 
-  it('deve calcular consumo para Biel semestral em horário off-peak com arredondamento normal', () => {
-    // Arrange
-    const dataOffPeak = criarDataComHora(21)
-    // Biel semestral: 0.95h × 0.95 (off-peak) × 0.8 (multiplicador semestral) — round
-    const esperado = Math.round(0.95 * 0.95 * 0.8 * 100) / 100
-
-    // Act
-    const resultado = calculateConsumption({ professorId: 'biel', plan: 'semestral', date: dataOffPeak })
-
-    // Assert
-    expect(resultado).toBe(esperado)
+  it('Biel / reserva / pico: 13 × 1.05 × 1.10 = 15.015 → round → 15', () => {
+    expect(calculatePlaysConsumed({ professorId: 'biel', isPeak: true, isReserva: true })).toBe(15)
   })
 
-  it('deve lançar ProfessorNotFoundError para um professorId inexistente', () => {
+  it('Biel / reserva / off-peak: 13 × 1.10 = 14.30 → round → 14', () => {
+    expect(calculatePlaysConsumed({ professorId: 'biel', isPeak: false, isReserva: true })).toBe(14)
+  })
+
+  // ── Marília (basePlays=16, roundingRule=ceil) ────────────────────────────────
+
+  it('Marília / reserva / off-peak: 16 × 1.10 = 17.6 → ceil → 18', () => {
+    expect(calculatePlaysConsumed({ professorId: 'marilia', isPeak: false, isReserva: true })).toBe(18)
+  })
+
+  it('Marília / titular / pico: 16 × 1.05 = 16.8 → ceil → 17', () => {
+    expect(calculatePlaysConsumed({ professorId: 'marilia', isPeak: true, isReserva: false })).toBe(17)
+  })
+
+  it('Marília / titular / off-peak: 16 → ceil → 16', () => {
+    expect(calculatePlaysConsumed({ professorId: 'marilia', isPeak: false, isReserva: false })).toBe(16)
+  })
+
+  // ── Paulinho (basePlays=10, roundingRule=round) ──────────────────────────────
+
+  it('Paulinho / titular / off-peak: 10 → round → 10', () => {
+    expect(calculatePlaysConsumed({ professorId: 'paulinho', isPeak: false, isReserva: false })).toBe(10)
+  })
+
+  it('Paulinho / reserva / pico: 10 × 1.05 × 1.10 = 11.55 → round → 12', () => {
+    expect(calculatePlaysConsumed({ professorId: 'paulinho', isPeak: true, isReserva: true })).toBe(12)
+  })
+
+  // ── Pepe (basePlays=13, roundingRule=round) ──────────────────────────────────
+
+  it('Pepe / titular / pico: 13 × 1.05 = 13.65 → round → 14', () => {
+    expect(calculatePlaysConsumed({ professorId: 'pepe', isPeak: true, isReserva: false })).toBe(14)
+  })
+
+  // ── Erro ─────────────────────────────────────────────────────────────────────
+
+  it('deve lançar ProfessorNotFoundError para professorId inexistente', () => {
     expect(() =>
-      calculateConsumption({ professorId: 'professor-inexistente', plan: 'mensal', date: new Date() })
+      calculatePlaysConsumed({ professorId: 'professor-inexistente', isPeak: false, isReserva: false })
     ).toThrow(ProfessorNotFoundError)
   })
 })
