@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { Users, UserPlus, Search, Loader2, ShieldOff, LayoutGrid, List } from "lucide-react"
+import { Users, UserPlus, Search, Loader2, ShieldOff, LayoutGrid, List, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { LevelBadge } from "@/components/shared/level-badge"
@@ -151,6 +151,24 @@ export function UsersManagementContent() {
   const [selectedUser, setSelectedUser] = useState<UserListItem | null>(null)
   const [viewMode, setViewMode] = useState<"grid" | "list">("list")
   const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "TEACHER" | "STUDENT">("ALL")
+  
+  const [pageAdmin, setPageAdmin] = useState(1)
+  const [pageTeacher, setPageTeacher] = useState(1)
+  const [pageStudent, setPageStudent] = useState(1)
+
+  const ITEMS_PER_PAGE = 4
+
+  // Reset page when defining filters
+  const [prevSearch, setPrevSearch] = useState(searchTerm)
+  const [prevRole, setPrevRole] = useState(roleFilter)
+
+  if (searchTerm !== prevSearch || roleFilter !== prevRole) {
+    setPrevSearch(searchTerm)
+    setPrevRole(roleFilter)
+    setPageAdmin(1)
+    setPageTeacher(1)
+    setPageStudent(1)
+  }
 
   const filteredUsers = users.filter((u) => {
     const matchesSearch =
@@ -163,8 +181,8 @@ export function UsersManagementContent() {
   // Sort students by level (index in STUDENT_LEVELS), others can just be alphabetical or left as is
   const sortedFilteredUsers = [...filteredUsers].sort((a, b) => {
     if (a.role === "STUDENT" && b.role === "STUDENT") {
-      const levelA = a.level ? STUDENT_LEVELS.indexOf(a.level as any) : -1
-      const levelB = b.level ? STUDENT_LEVELS.indexOf(b.level as any) : -1
+      const levelA = a.level ? STUDENT_LEVELS.indexOf(a.level as typeof STUDENT_LEVELS[number]) : -1
+      const levelB = b.level ? STUDENT_LEVELS.indexOf(b.level as typeof STUDENT_LEVELS[number]) : -1
       // Se tiverem o mesmo nível, ordena por nome
       if (levelA === levelB) {
         return a.name.localeCompare(b.name)
@@ -175,8 +193,48 @@ export function UsersManagementContent() {
     return a.name.localeCompare(b.name)
   })
 
-  const renderUsersList = (userList: UserListItem[]) => {
-    if (userList.length === 0) {
+  const admins = sortedFilteredUsers.filter(u => u.role === "ADMIN")
+  const teachers = sortedFilteredUsers.filter(u => u.role === "TEACHER")
+  const students = sortedFilteredUsers.filter(u => u.role === "STUDENT")
+
+  const renderPagination = (total: number, current: number, onChange: (p: number) => void) => {
+    const totalPages = Math.ceil(total / ITEMS_PER_PAGE)
+    if (totalPages <= 1) return null
+
+    return (
+      <div className="flex sm:flex-row flex-col items-center justify-between gap-4 pt-4 border-t border-zinc-100 mt-4">
+        <p className="text-sm text-zinc-500">
+          Mostrando {((current - 1) * ITEMS_PER_PAGE) + 1} até {Math.min(current * ITEMS_PER_PAGE, total)} de <span className="font-bold">{total}</span> usuários
+        </p>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onChange(Math.max(1, current - 1))}
+            disabled={current === 1}
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" /> Anterior
+          </Button>
+          <div className="text-sm text-zinc-600 font-medium px-2">
+            Página {current} de {totalPages}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onChange(Math.min(totalPages, current + 1))}
+            disabled={current === totalPages}
+          >
+            Próxima <ChevronRight className="w-4 h-4 ml-1" />
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  const renderUsersList = (userList: UserListItem[], page: number) => {
+    const paginatedSlice = userList.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
+
+    if (paginatedSlice.length === 0) {
       return (
         <div className="flex items-center justify-center py-8">
           <p className="text-sm text-zinc-400">Nenhum usuário encontrado</p>
@@ -187,7 +245,7 @@ export function UsersManagementContent() {
     if (viewMode === "grid") {
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {userList.map((user) => (
+          {paginatedSlice.map((user) => (
             <UserCard key={user.uid} user={user} onClick={() => setSelectedUser(user)} />
           ))}
         </div>
@@ -197,7 +255,7 @@ export function UsersManagementContent() {
     return (
       <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-sm">
         <div className="divide-y divide-zinc-100">
-          {userList.map((user) => (
+          {paginatedSlice.map((user) => (
             <UserRow key={user.uid} user={user} onClick={() => setSelectedUser(user)} />
           ))}
         </div>
@@ -292,38 +350,46 @@ export function UsersManagementContent() {
       )}
 
       {!isLoading && !isError && sortedFilteredUsers.length > 0 && (
-        roleFilter === "ALL" ? (
-          <div className="space-y-10">
-            {sortedFilteredUsers.some(u => u.role === "ADMIN") && (
-              <section className="space-y-3">
-                <h2 className="text-lg font-semibold text-zinc-800 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-green-500"></span> Administradores
-                </h2>
-                {renderUsersList(sortedFilteredUsers.filter(u => u.role === "ADMIN"))}
-              </section>
-            )}
-            
-            {sortedFilteredUsers.some(u => u.role === "TEACHER") && (
-              <section className="space-y-3">
-                <h2 className="text-lg font-semibold text-zinc-800 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-500"></span> Professores
-                </h2>
-                {renderUsersList(sortedFilteredUsers.filter(u => u.role === "TEACHER"))}
-              </section>
-            )}
+        <div className="space-y-10">
+          {(roleFilter === "ALL" || roleFilter === "ADMIN") && admins.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-lg font-semibold text-zinc-800 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span> Administradores
+                <span className="ml-2 text-xs font-bold bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">
+                  {admins.length} {admins.length === 1 ? 'usuário' : 'usuários'}
+                </span>
+              </h2>
+              {renderUsersList(admins, pageAdmin)}
+              {renderPagination(admins.length, pageAdmin, setPageAdmin)}
+            </section>
+          )}
+          
+          {(roleFilter === "ALL" || roleFilter === "TEACHER") && teachers.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-lg font-semibold text-zinc-800 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-500"></span> Professores
+                <span className="ml-2 text-xs font-bold bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">
+                  {teachers.length} {teachers.length === 1 ? 'usuário' : 'usuários'}
+                </span>
+              </h2>
+              {renderUsersList(teachers, pageTeacher)}
+              {renderPagination(teachers.length, pageTeacher, setPageTeacher)}
+            </section>
+          )}
 
-            {sortedFilteredUsers.some(u => u.role === "STUDENT") && (
-              <section className="space-y-3">
-                <h2 className="text-lg font-semibold text-zinc-800 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-brand"></span> Alunos
-                </h2>
-                {renderUsersList(sortedFilteredUsers.filter(u => u.role === "STUDENT"))}
-              </section>
-            )}
-          </div>
-        ) : (
-          renderUsersList(sortedFilteredUsers)
-        )
+          {(roleFilter === "ALL" || roleFilter === "STUDENT") && students.length > 0 && (
+            <section className="space-y-3">
+              <h2 className="text-lg font-semibold text-zinc-800 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-brand"></span> Alunos
+                <span className="ml-2 text-xs font-bold bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">
+                  {students.length} {students.length === 1 ? 'usuário' : 'usuários'}
+                </span>
+              </h2>
+              {renderUsersList(students, pageStudent)}
+              {renderPagination(students.length, pageStudent, setPageStudent)}
+            </section>
+          )}
+        </div>
       )}
 
       <CreateUserModal open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} />

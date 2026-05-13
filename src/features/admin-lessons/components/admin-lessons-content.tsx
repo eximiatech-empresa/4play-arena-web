@@ -28,9 +28,14 @@ import {
   WEEKDAYS,
   MONTHS_PT,
   STATUS_OPTIONS,
-  LESSON_CHIP_CLASS,
-} from "../constants"
+} from "@/core/constants/lesson-labels"
 import { buildCalendarGrid, toDatetimeInput } from "@/utils/calendar"
+
+const LESSON_CHIP_CLASS: Record<string, string> = {
+  scheduled: "bg-blue-100/50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20",
+  finished: "bg-emerald-100/50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20",
+  cancelled: "bg-rose-100/50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20",
+}
 
 // ─── Lesson chip ──────────────────────────────────────────────────────────────
 

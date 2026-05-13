@@ -170,7 +170,7 @@ export function LessonCard({
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-1.5 justify-center text-xs text-green-800 font-semibold py-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                Play's reembolsados
+                Play&apos;s reembolsados
               </div>
               <div className="text-[10px] text-center text-red-500 font-medium">
                 Inscrição cancelada

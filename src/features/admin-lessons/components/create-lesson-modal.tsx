@@ -17,7 +17,7 @@ import {
 import { useTeachers } from "@/features/auth/hooks/use-teachers"
 import { useCreateLessons } from "../hooks/use-admin-lessons"
 import { STUDENT_LEVELS } from "@/core/constants/professors"
-import { CreateLessonSchema, type CreateLessonFormData } from "../schemas"
+import { CreateLessonSchema, type CreateLessonFormData } from "@/core/entities/lesson"
 
 interface CreateLessonModalProps {
   open: boolean
@@ -90,10 +90,10 @@ export function CreateLessonModal({ open, onOpenChange, defaultDateTime }: Creat
         type: data.type,
         repeatUntil: data.repeatUntil || undefined,
         // Injetando as propriedades financeiras requiridas (fallbacks)
-        professorBasePlays: (teacher as any).basePlays ?? teacher.lessonPrice ?? 8,
-        professorRoundingRule: (teacher as any).roundingRule ?? "round",
-        professorSharePct: (teacher as any).professorSharePct ?? 0.5,
-        arenaSharePct: (teacher as any).arenaSharePct ?? 0.5,
+        professorBasePlays: (teacher as unknown as Record<string, unknown>).basePlays as number ?? teacher.lessonPrice ?? 8,
+        professorRoundingRule: (teacher as unknown as Record<string, unknown>).roundingRule as "round" | "ceil" | "floor" ?? "round",
+        professorSharePct: (teacher as unknown as Record<string, unknown>).professorSharePct as number ?? 0.5,
+        arenaSharePct: (teacher as unknown as Record<string, unknown>).arenaSharePct as number ?? 0.5,
       },
       { onSuccess: () => handleClose(false) },
     )

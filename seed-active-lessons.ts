@@ -15,7 +15,7 @@ async function generateActiveLessons() {
   
   // 2. Busca o molde que você criou no Firebase
   const gridDoc = await db.collection("configs").doc("lessonGrid").get()
-  const template = gridDoc.data()?.lessons as any[]
+  const template = gridDoc.data()?.lessons as unknown[]
 
   if (!template) {
     console.error("❌ Molde não encontrado em configs/lessonGrid!")

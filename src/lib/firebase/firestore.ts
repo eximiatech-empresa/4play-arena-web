@@ -63,14 +63,14 @@ export async function getTeachers(): Promise<TeacherUser[]> {
 export async function getAllUsers(): Promise<UserListItem[]> {
   const snap = await getDocs(collection(db, "users"))
   return snap.docs.map((d) => {
-    const rawData = { uid: d.id, ...d.data() }
+    const rawData = { uid: d.id, ...d.data() } as Record<string, unknown>
     const result = UserListItemSchema.safeParse(rawData)
     
     if (!result.success) {
       console.warn(`[getAllUsers] Dados incompletos ou inválidos para UID: ${d.id}`, result.error.format())
       // Fallback object to ensure the list doesn't break
       return {
-        uid: rawData.uid || d.id,
+        uid: String(rawData.uid || d.id),
         name: String(rawData.name || "Usuário sem nome"),
         email: String(rawData.email || ""),
         role: "STUDENT",

@@ -62,17 +62,20 @@ export function LessonDetailsModal({
   const mountedRef = useRef(true)
 
   useEffect(() => {
+    const el = contentRef.current
     mountedRef.current = true
     return () => {
       mountedRef.current = false
-      gsap.killTweensOf(contentRef.current)
+      if (el) gsap.killTweensOf(el)
     }
   }, [])
 
   // Reset override when a new lesson is selected
-  useEffect(() => {
+  const [prevLesson, setPrevLesson] = useState(lesson)
+  if (lesson !== prevLesson) {
+    setPrevLesson(lesson)
     if (open) setLessonOverride(null)
-  }, [lesson, open])
+  }
 
   const runExit = useCallback(() => {
     closingRef.current = true
@@ -100,12 +103,21 @@ export function LessonDetailsModal({
   }, [onClose])
 
   // Sync parent open → local open (uses ref to avoid stale closure on localOpen)
+  const [prevOpenSync, setPrevOpenSync] = useState(open)
+  if (open !== prevOpenSync) {
+    setPrevOpenSync(open)
+    if (open) {
+      setLocalOpen(true)
+    }
+  }
+
+   
   useEffect(() => {
     if (open) {
       closingRef.current = false
       localOpenRef.current = true
-      setLocalOpen(true)
     } else if (localOpenRef.current && !closingRef.current) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       runExit()
     }
   }, [open, runExit])

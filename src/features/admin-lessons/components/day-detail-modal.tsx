@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import {
   Dialog,
   DialogContent,
@@ -30,7 +30,13 @@ import { useDeleteLesson } from "../hooks/use-admin-lessons"
 import { useAttendanceManager, type AttendanceStatus } from "../hooks/use-attendance-manager"
 import type { LessonDocument } from "@/core/entities/lesson"
 import { cn } from "@/lib/utils"
-import { LESSON_STATUS_PILL, LESSON_STATUS_LABEL } from "../constants"
+import { LESSON_STATUS_LABEL } from "@/core/constants/lesson-labels"
+
+const LESSON_STATUS_PILL: Record<string, string> = {
+  scheduled: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+  finished: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+  cancelled: "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-800",
+}
 
 const PAGE_SIZE = 3
 
@@ -303,14 +309,16 @@ export function DayDetailModal({
   const [view, setView] = useState<View>("actions")
   const [page, setPage] = useState(1)
   const [detailLesson, setDetailLesson] = useState<LessonDocument | null>(null)
+  const [prevOpen, setPrevOpen] = useState(open)
 
-  useEffect(() => {
+  if (open !== prevOpen) {
+    setPrevOpen(open)
     if (open) {
       setView("actions")
       setPage(1)
       setDetailLesson(null)
     }
-  }, [open])
+  }
 
   const totalPages = Math.max(1, Math.ceil(lessons.length / PAGE_SIZE))
   const pageLessons = lessons.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
