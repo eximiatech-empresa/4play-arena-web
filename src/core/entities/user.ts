@@ -35,14 +35,14 @@ export type TeacherUser = z.infer<typeof TeacherUserSchema>
 
 export const StudentUserSchema = BaseUserSchema.extend({
   role: z.literal("STUDENT"),
-  level: z.string(),
+  level: z.string().optional().default("Iniciante"),
   walletBalance: z.preprocess(
     (val) => typeof val === "number" && Number.isNaN(val) ? 0 : val,
     z.number().catch(0)
   ),
-  originalTeacherId: z.string(),
-  currentPlanId: StudentPlanSchema,
-  planExpiresAt: z.string(),
+  originalTeacherId: z.string().optional().default(""),
+  currentPlanId: StudentPlanSchema.optional().default("mensal"),
+  planExpiresAt: z.string().optional().default(""),
   planPlayValue: z.preprocess(
     (val) => typeof val === "number" && Number.isNaN(val) ? undefined : val,
     z.number().positive().optional()

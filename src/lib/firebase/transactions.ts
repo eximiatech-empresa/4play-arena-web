@@ -70,6 +70,11 @@ export async function processPlanPurchase(
   await batch.commit()
 }
 
+export async function getStudentPackageTransactions(studentId: string): Promise<Transaction[]> {
+  const all = await getStudentTransactions(studentId)
+  return all.filter((t) => t.type === "package")
+}
+
 export async function processPackagePurchase(
   uid: string,
   plays: number,

@@ -8,6 +8,7 @@ import { CreateUserModal } from "./create-user-modal"
 import { UserDetailsModal } from "./users-details-modal"
 import { useUsers, type UserListItem } from "../hooks/use-users"
 import { cn } from "@/lib/utils"
+import { STUDENT_LEVELS } from "@/core/constants/professors"
 
 const ROLE_LABEL: Record<string, string> = {
   STUDENT: "Aluno",
@@ -149,12 +150,60 @@ export function UsersManagementContent() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserListItem | null>(null)
   const [viewMode, setViewMode] = useState<"grid" | "list">("list")
+  const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "TEACHER" | "STUDENT">("ALL")
 
-  const filteredUsers = users.filter(
-    (u) =>
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch =
       u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase()),
-  )
+      u.email.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesRole = roleFilter === "ALL" || u.role === roleFilter
+    return matchesSearch && matchesRole
+  })
+
+  // Sort students by level (index in STUDENT_LEVELS), others can just be alphabetical or left as is
+  const sortedFilteredUsers = [...filteredUsers].sort((a, b) => {
+    if (a.role === "STUDENT" && b.role === "STUDENT") {
+      const levelA = a.level ? STUDENT_LEVELS.indexOf(a.level as any) : -1
+      const levelB = b.level ? STUDENT_LEVELS.indexOf(b.level as any) : -1
+      // Se tiverem o mesmo nível, ordena por nome
+      if (levelA === levelB) {
+        return a.name.localeCompare(b.name)
+      }
+      return levelA - levelB
+    }
+    // Deixa professores e admins ordenados pelo nome
+    return a.name.localeCompare(b.name)
+  })
+
+  const renderUsersList = (userList: UserListItem[]) => {
+    if (userList.length === 0) {
+      return (
+        <div className="flex items-center justify-center py-8">
+          <p className="text-sm text-zinc-400">Nenhum usuário encontrado</p>
+        </div>
+      )
+    }
+
+    if (viewMode === "grid") {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {userList.map((user) => (
+            <UserCard key={user.uid} user={user} onClick={() => setSelectedUser(user)} />
+          ))}
+        </div>
+      )
+    }
+
+    return (
+      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-sm">
+        <div className="divide-y divide-zinc-100">
+          {userList.map((user) => (
+            <UserRow key={user.uid} user={user} onClick={() => setSelectedUser(user)} />
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="px-5 py-6 lg:px-8 lg:py-8 max-w-6xl mx-auto space-y-6">
@@ -176,14 +225,51 @@ export function UsersManagementContent() {
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-        <Input
-          placeholder="Buscar usuário..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-9 bg-white"
-        />
+      <div className="space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+          <Input
+            placeholder="Buscar usuário..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 bg-white"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant={roleFilter === "ALL" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setRoleFilter("ALL")}
+            className={cn(roleFilter === "ALL" && "bg-zinc-800 text-white hover:bg-zinc-900")}
+          >
+            Todos
+          </Button>
+          <Button
+            variant={roleFilter === "ADMIN" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setRoleFilter("ADMIN")}
+            className={cn(roleFilter === "ADMIN" && "bg-green-600 text-white hover:bg-green-700")}
+          >
+            Administradores
+          </Button>
+          <Button
+            variant={roleFilter === "TEACHER" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setRoleFilter("TEACHER")}
+            className={cn(roleFilter === "TEACHER" && "bg-blue-600 text-white hover:bg-blue-700")}
+          >
+            Professores
+          </Button>
+          <Button
+            variant={roleFilter === "STUDENT" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setRoleFilter("STUDENT")}
+            className={cn(roleFilter === "STUDENT" && "bg-brand text-white hover:bg-brand-dark")}
+          >
+            Alunos
+          </Button>
+        </div>
       </div>
 
       {isLoading && (
@@ -199,27 +285,44 @@ export function UsersManagementContent() {
         </div>
       )}
 
-      {!isLoading && !isError && filteredUsers.length === 0 && (
+      {!isLoading && !isError && sortedFilteredUsers.length === 0 && (
         <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-zinc-400">Nenhum usuário encontrado</p>
+          <p className="text-sm text-zinc-400">Nenhum usuário encontrado com os filtros atuais</p>
         </div>
       )}
 
-      {!isLoading && !isError && filteredUsers.length > 0 && (
-        viewMode === "grid" ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredUsers.map((user) => (
-              <UserCard key={user.uid} user={user} onClick={() => setSelectedUser(user)} />
-            ))}
+      {!isLoading && !isError && sortedFilteredUsers.length > 0 && (
+        roleFilter === "ALL" ? (
+          <div className="space-y-10">
+            {sortedFilteredUsers.some(u => u.role === "ADMIN") && (
+              <section className="space-y-3">
+                <h2 className="text-lg font-semibold text-zinc-800 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-500"></span> Administradores
+                </h2>
+                {renderUsersList(sortedFilteredUsers.filter(u => u.role === "ADMIN"))}
+              </section>
+            )}
+            
+            {sortedFilteredUsers.some(u => u.role === "TEACHER") && (
+              <section className="space-y-3">
+                <h2 className="text-lg font-semibold text-zinc-800 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500"></span> Professores
+                </h2>
+                {renderUsersList(sortedFilteredUsers.filter(u => u.role === "TEACHER"))}
+              </section>
+            )}
+
+            {sortedFilteredUsers.some(u => u.role === "STUDENT") && (
+              <section className="space-y-3">
+                <h2 className="text-lg font-semibold text-zinc-800 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-brand"></span> Alunos
+                </h2>
+                {renderUsersList(sortedFilteredUsers.filter(u => u.role === "STUDENT"))}
+              </section>
+            )}
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden shadow-sm">
-            <div className="divide-y divide-zinc-100">
-              {filteredUsers.map((user) => (
-                <UserRow key={user.uid} user={user} onClick={() => setSelectedUser(user)} />
-              ))}
-            </div>
-          </div>
+          renderUsersList(sortedFilteredUsers)
         )
       )}
 
