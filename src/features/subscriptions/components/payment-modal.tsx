@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { getFirebaseAuth } from "@/lib/firebase/auth"
-import { processPlanPurchase } from "@/lib/firebase/transactions"
+import { processPlanPurchase, processPackagePurchase } from "@/lib/firebase/transactions"
 import { createSubscription } from "@/lib/firebase/subscription"
 import { formatCurrency } from "@/utils/formatters"
 import type { Plan } from "@/core/entities/wallet"
@@ -75,13 +75,23 @@ function formatExpiry(value: string): string {
 interface PaymentModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  plan: { id: Plan; label: string; price: number; plays: number; days: number; playValue?: number }
+  /** `kind: "plan"` (default) for subscription plans; `kind: "package"` for play top-ups. */
+  plan: {
+    kind?: "plan" | "package"
+    id: Plan
+    label: string
+    price: number
+    plays: number
+    days?: number
+    playValue?: number
+  }
   currentBalance: number
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function PaymentModal({ open, onOpenChange, plan, currentBalance }: PaymentModalProps) {
+  const isPackage = plan.kind === "package"
   const queryClient = useQueryClient()
   const [isPaying, setIsPaying] = useState(false)
 
@@ -111,43 +121,50 @@ export function PaymentModal({ open, onOpenChange, plan, currentBalance }: Payme
 
     setIsPaying(true)
     try {
-      const playsAmount = plan.plays
-      const now = new Date().toISOString()
-      const periodEnd = new Date(Date.now() + plan.days * 24 * 60 * 60 * 1000).toISOString()
+      if (isPackage) {
+        await processPackagePurchase(fbUser.uid, plan.plays, currentBalance)
+        await queryClient.invalidateQueries({ queryKey: ["wallet"] })
+        toast.success(`${plan.plays} Plays adicionados com sucesso!`)
+      } else {
+        const days = plan.days!
+        const now = new Date().toISOString()
+        const periodEnd = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString()
 
-      if (!plan.playValue) throw new Error("Dados do plano incompletos.")
+        if (!plan.playValue) throw new Error("Dados do plano incompletos.")
 
-      await processPlanPurchase(
-        fbUser.uid,
-        plan.id,
-        playsAmount,
-        plan.days,
-        currentBalance,
-        plan.playValue,
-      )
+        await processPlanPurchase(
+          fbUser.uid,
+          plan.id,
+          plan.plays,
+          days,
+          currentBalance,
+          plan.playValue,
+        )
 
-      await createSubscription({
-        studentId: fbUser.uid,
-        planId: plan.id,
-        status: "active",
-        currentPeriodStart: now,
-        currentPeriodEnd: periodEnd,
-        cancelAtPeriodEnd: false,
-        provider: "pagarme_mock",
-        autoRenew: data.type === "credit",
-        cardBrand: detectBrand(data.number),
-        cardLast4: data.number.replace(/\s/g, "").slice(-4),
-        startedAt: now,
-        nextBillingDate: periodEnd,
-      })
+        await createSubscription({
+          studentId: fbUser.uid,
+          planId: plan.id,
+          status: "active",
+          currentPeriodStart: now,
+          currentPeriodEnd: periodEnd,
+          cancelAtPeriodEnd: false,
+          provider: "pagarme_mock",
+          autoRenew: data.type === "credit",
+          cardBrand: detectBrand(data.number),
+          cardLast4: data.number.replace(/\s/g, "").slice(-4),
+          startedAt: now,
+          nextBillingDate: periodEnd,
+        })
 
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["wallet"] }),
-        queryClient.invalidateQueries({ queryKey: ["currentUser"] }),
-        queryClient.invalidateQueries({ queryKey: ["subscription", "active", fbUser.uid] }),
-      ])
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["wallet"] }),
+          queryClient.invalidateQueries({ queryKey: ["currentUser"] }),
+          queryClient.invalidateQueries({ queryKey: ["subscription", "active", fbUser.uid] }),
+        ])
 
-      toast.success(`Plano ${plan.label} ativado com sucesso!`)
+        toast.success(`Plano ${plan.label} ativado com sucesso!`)
+      }
+
       reset()
       onOpenChange(false)
     } catch (err) {
@@ -174,12 +191,13 @@ export function PaymentModal({ open, onOpenChange, plan, currentBalance }: Payme
           <DialogDescription asChild>
             <div className="space-y-0.5">
               <p>
-                Plano {plan.label} ·{" "}
+                {isPackage ? "Pacote" : "Plano"} {plan.label} ·{" "}
                 <span className="font-semibold text-foreground">{formatCurrency(plan.price)}</span>
               </p>
               <p className="text-xs">
-                {plan.plays} Plays · {plan.days} dias
-                {plan.playValue !== undefined && (
+                {plan.plays} Plays
+                {!isPackage && plan.days !== undefined && <> · {plan.days} dias</>}
+                {!isPackage && plan.playValue !== undefined && (
                   <> · <span className="font-medium text-foreground">
                     R$ {new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(plan.playValue)}/Play
                   </span></>

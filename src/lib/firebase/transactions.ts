@@ -1,4 +1,4 @@
-import { doc, collection, query, where, getDocs, writeBatch } from "firebase/firestore"
+import { doc, collection, query, where, getDocs, writeBatch, updateDoc } from "firebase/firestore"
 import { db } from "./firestore"
 import type { Transaction, Plan } from "@/core/entities/wallet"
 import { TransactionSchema } from "@/core/entities/wallet"
@@ -64,6 +64,37 @@ export async function processPlanPurchase(
     classLevel: null,
     isPeak: null,
     createdAt: new Date().toISOString()
+  }
+  batch.set(txRef, transactionData)
+
+  await batch.commit()
+}
+
+export async function processPackagePurchase(
+  uid: string,
+  plays: number,
+  currentBalance: number,
+): Promise<void> {
+  const batch = writeBatch(db)
+
+  const newBalance = currentBalance + plays
+
+  // Only walletBalance changes — plan, playValue, and expiresAt stay untouched
+  batch.update(doc(db, "users", uid), { walletBalance: newBalance })
+
+  const txRef = doc(collection(db, "transactions"))
+  const transactionData: Transaction = {
+    id: txRef.id,
+    walletId: uid,
+    studentId: uid,
+    lessonId: null,
+    type: "package",
+    amount: plays,
+    balanceAfter: newBalance,
+    professorName: null,
+    classLevel: null,
+    isPeak: null,
+    createdAt: new Date().toISOString(),
   }
   batch.set(txRef, transactionData)
 

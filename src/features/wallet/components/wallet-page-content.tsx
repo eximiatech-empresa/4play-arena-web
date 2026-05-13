@@ -4,6 +4,7 @@ import { Info, Loader2, Wallet } from "lucide-react"
 import { useWallet } from "@/features/wallet/hooks/use-wallet"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { PLANS } from "@/core/constants/professors"
+import { usePlans } from "@/features/wallet/hooks/use-plans"
 import { computeWalletMetrics, computeDaysUntilExpiration } from "@/features/wallet/utils/wallet-metrics"
 import { BalanceHero } from "./balance-hero"
 import { MetricCards } from "./metric-cards"
@@ -42,6 +43,7 @@ function AdminPricingView() {
 export function WalletPageContent() {
   const { data: user, isLoading: isUserLoading } = useCurrentUser()
   const { data: wallet, isLoading: isWalletLoading, isError } = useWallet()
+  const { data: plans = [] } = usePlans()
 
   if (isUserLoading) {
     return (
@@ -72,7 +74,10 @@ export function WalletPageContent() {
     )
   }
 
-  const plan = PLANS[wallet.plan]
+  const firebasePlan = plans.find((p) => p.id === wallet.plan)
+  const legacyPlan = PLANS[wallet.plan as keyof typeof PLANS]
+  const planLabel = firebasePlan?.label ?? legacyPlan?.label ?? wallet.plan
+  const planPrice = firebasePlan ? firebasePlan.priceInCents / 100 : legacyPlan?.price
   const daysLeft = computeDaysUntilExpiration(wallet.expiresAt)
   const expiresAt = new Date(wallet.expiresAt)
   const metrics = computeWalletMetrics(wallet.transactions, wallet.balance, wallet.totalPlays)
@@ -88,7 +93,7 @@ export function WalletPageContent() {
 
       <div className="flex items-center gap-3 flex-wrap">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-subtle border border-brand/20 px-3 py-1 text-xs font-semibold text-brand-dark">
-          {plan.label} - R$ {plan.price.toLocaleString("pt-BR")}
+          {planLabel}{planPrice !== undefined ? ` - R$ ${planPrice.toLocaleString("pt-BR")}` : ""}
         </span>
         <span
           className={
