@@ -20,6 +20,8 @@ export async function executeCheckIn(
   lesson: Lesson,
   checkInFn: CheckInFn,
 ): Promise<void> {
+  console.log("[DEBUG CHECK-IN] Iniciando processo para aluno:", userId, { lessonId: lesson.id })
+
   if (!userId) throw new NotAuthenticatedError(ERROS.NAO_AUTENTICADO)
 
   const status = getCheckInStatus(new Date(lesson.dateTime), lesson.isEnrolled, new Date())

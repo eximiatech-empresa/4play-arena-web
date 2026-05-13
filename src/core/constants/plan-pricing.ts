@@ -1,6 +1,6 @@
 // src/core/constants/plan-pricing.ts
 
-export type PlanId = "mensal" | "trimestral" | "semestral"
+export type PlanId = string
 
 export interface PlanConfig {
   readonly id: PlanId
@@ -13,6 +13,8 @@ export interface PlanConfig {
   readonly priceInCents: number
   /** Monetary value of a single Play for this plan (R$). */
   readonly playValue: number
+  /** Whether this plan is highlighted as "popular" in the UI. */
+  readonly popular?: boolean
 }
 
 export const PLAN_CONFIGS: Readonly<Record<PlanId, PlanConfig>> = {

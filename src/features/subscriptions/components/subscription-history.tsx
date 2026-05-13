@@ -3,11 +3,10 @@
 import { AlertTriangle, CreditCard, RefreshCw, ShoppingBag, ReceiptText } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useSubscriptionHistory } from "@/features/subscriptions/hooks/use-subscription"
-import { PLANS } from "@/core/constants/professors"
-import { PLAN_MULTIPLIERS } from "@/core/math/consumption"
+import { usePlans } from "@/features/wallet/hooks/use-plans"
 import { formatCurrency } from "@/utils/formatters"
 import type { SubscriptionDocument, SubscriptionStatus } from "@/core/entities/subscription"
-import type { Plan } from "@/core/entities/wallet"
+import type { PlanConfig } from "@/core/constants/plan-pricing"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -85,11 +84,10 @@ function RenewalBadge({ autoRenew }: { autoRenew: boolean }) {
 
 // ─── Active plan hero card ────────────────────────────────────────────────────
 
-function ActivePlanCard({ sub }: { sub: SubscriptionDocument }) {
-  const planData = PLANS[sub.planId as Plan]
+function ActivePlanCard({ sub, planData }: { sub: SubscriptionDocument; planData: PlanConfig | undefined }) {
   if (!planData) return null
 
-  const totalPlays = planData.hours * PLAN_MULTIPLIERS[sub.planId as Plan]
+  const totalPlays = planData.totalPlays
 
   return (
     <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
@@ -116,10 +114,10 @@ function ActivePlanCard({ sub }: { sub: SubscriptionDocument }) {
           <div>
             <p className="text-2xl font-bold text-foreground">{planData.label}</p>
             <p className="text-sm text-zinc-400 mt-0.5">
-              {totalPlays.toFixed(1)} Plays · {planData.days} dias
+              {totalPlays} Plays · {planData.validityDays} dias
             </p>
           </div>
-          <p className="text-xl font-bold text-brand shrink-0">{formatCurrency(planData.price)}</p>
+          <p className="text-xl font-bold text-brand shrink-0">{formatCurrency(planData.priceInCents / 100)}</p>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -171,8 +169,7 @@ function ActivePlanCard({ sub }: { sub: SubscriptionDocument }) {
 
 // ─── History card ─────────────────────────────────────────────────────────────
 
-function HistoryCard({ sub }: { sub: SubscriptionDocument }) {
-  const planData = PLANS[sub.planId as Plan]
+function HistoryCard({ sub, planData }: { sub: SubscriptionDocument; planData: PlanConfig | undefined }) {
   if (!planData) return null
 
   return (
@@ -182,12 +179,12 @@ function HistoryCard({ sub }: { sub: SubscriptionDocument }) {
           <div className="flex items-center gap-2 flex-wrap">
             <StatusBadge status={sub.status} />
             <span className="text-sm font-semibold text-foreground">{planData.label}</span>
-            <span className="text-sm text-zinc-400">{formatCurrency(planData.price)}</span>
+            <span className="text-sm text-zinc-400">{formatCurrency(planData.priceInCents / 100)}</span>
           </div>
 
           <p className="text-xs text-zinc-400">
             {fmtDate(sub.currentPeriodStart)} → {fmtDate(sub.currentPeriodEnd)} ·{" "}
-            {planData.days} dias
+            {planData.validityDays} dias
           </p>
 
           <div className="flex items-center gap-3 flex-wrap">
@@ -273,6 +270,9 @@ function EmptyState() {
 
 export function SubscriptionHistory() {
   const { data: subscriptions, isLoading } = useSubscriptionHistory()
+  const { data: plans } = usePlans()
+
+  const planMap = new Map<string, PlanConfig>(plans?.map((p) => [p.id, p]))
 
   const activeSub = subscriptions?.find(
     (s) => s.status === "active" || s.status === "trialing",
@@ -291,7 +291,9 @@ export function SubscriptionHistory() {
         <EmptyState />
       ) : (
         <>
-          {activeSub && <ActivePlanCard sub={activeSub} />}
+          {activeSub && (
+            <ActivePlanCard sub={activeSub} planData={planMap.get(activeSub.planId)} />
+          )}
 
           <div>
             <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wide mb-3">
@@ -299,7 +301,7 @@ export function SubscriptionHistory() {
             </h2>
             <div className="space-y-3">
               {subscriptions.map((sub) => (
-                <HistoryCard key={sub.id} sub={sub} />
+                <HistoryCard key={sub.id} sub={sub} planData={planMap.get(sub.planId)} />
               ))}
             </div>
           </div>

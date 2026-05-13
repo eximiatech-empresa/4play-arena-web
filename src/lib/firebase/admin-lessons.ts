@@ -1,3 +1,5 @@
+// src/lib/firebase/admin-lessons.ts
+
 import {
   collection,
   doc,
@@ -8,7 +10,7 @@ import {
   orderBy,
   writeBatch,
 } from "firebase/firestore"
-import { db } from "./firestore"
+import { db } from "./firestore" // Ajuste o caminho se necessário (ex: "@/lib/firebase/config")
 import { LessonDocumentSchema } from "@/core/entities/lesson"
 import type { LessonDocument, CreateLessonInput } from "@/core/entities/lesson"
 import { buildDateList } from "@/core/usecases/lessons/create-lesson"
@@ -63,7 +65,6 @@ export async function getAdminLessonsByMonth(
 export async function createBulkLessons(input: CreateLessonInput): Promise<number> {
   const dates = buildDateList(input)
   const batch = writeBatch(db)
-  const now = new Date().toISOString()
 
   for (const dateTime of dates) {
     const ref = doc(collection(db, "lessons"))
@@ -84,10 +85,16 @@ export async function createBulkLessons(input: CreateLessonInput): Promise<numbe
       reservaIds: [],
       status: "scheduled",
       wasRescheduled: false,
-      createdAt: now,
+      
+      // ── DESNORMALIZAÇÃO FINANCEIRA ──
+      // Carimba as regras do professor diretamente no documento da aula.
+      professorBasePlays: input.professorBasePlays,
+      professorRoundingRule: input.professorRoundingRule || "round", // Fallback de segurança
+      professorSharePct: input.professorSharePct,
+      arenaSharePct: input.arenaSharePct,
     })
   }
-
+  
   await batch.commit()
   return dates.length
 }
@@ -95,4 +102,3 @@ export async function createBulkLessons(input: CreateLessonInput): Promise<numbe
 export async function deleteLesson(lessonId: string): Promise<void> {
   await deleteDoc(doc(db, "lessons", lessonId))
 }
-

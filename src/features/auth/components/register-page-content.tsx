@@ -8,10 +8,10 @@ import { Eye, EyeOff, Loader2, Check, User, CalendarDays, BookUser } from "lucid
 import { cn } from "@/lib/utils"
 
 import { RegisterSchema, type RegisterInput, type OnboardingStep2Input, type OnboardingStep3Input } from "@/core/entities/auth"
-import { PLANS } from "@/core/constants/professors"
 import { authService } from "@/lib/auth"
 import { useOnboarding } from "../hooks/use-onboarding"
 import { useTeachers } from "../hooks/use-teachers"
+import { usePlans } from "@/features/wallet/hooks/use-plans"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -168,25 +168,23 @@ function Step1({ onNext }: Step1Props) {
 // ─── Step 2 — Plan selection ──────────────────────────────────────────────────
 
 interface Step2Props {
-  onNext: (plan: StudentPlan) => void
+  onNext: (plan: StudentPlan, validityDays: number) => void
 }
-
-const PLAN_ORDER: StudentPlan[] = ["mensal", "trimestral", "semestral"]
 
 function Step2({ onNext }: Step2Props) {
   const [selected, setSelected] = useState<StudentPlan | null>(null)
+  const { data: plans = [] } = usePlans()
 
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        {PLAN_ORDER.map((key) => {
-          const plan = PLANS[key]
-          const isSelected = selected === key
+        {plans.map((plan) => {
+          const isSelected = selected === plan.id
           return (
             <button
-              key={key}
+              key={plan.id}
               type="button"
-              onClick={() => setSelected(key)}
+              onClick={() => setSelected(plan.id as StudentPlan)}
               className={cn(
                 "w-full text-left rounded-xl border-2 p-4 transition-all",
                 isSelected
@@ -199,11 +197,11 @@ function Step2({ onNext }: Step2Props) {
                   <p className={cn("font-semibold text-sm", isSelected ? "text-brand-dark" : "text-zinc-800")}>
                     {plan.label}
                   </p>
-                  <p className="text-xs text-zinc-500 mt-0.5">{plan.hours}h · {plan.days} dias</p>
+                  <p className="text-xs text-zinc-500 mt-0.5">{plan.totalPlays} Plays · {plan.validityDays} dias</p>
                 </div>
                 <div className="text-right">
                   <p className={cn("text-lg font-bold tabular-nums", isSelected ? "text-brand-dark" : "text-zinc-800")}>
-                    R$ {plan.price.toLocaleString("pt-BR")}
+                    R$ {(plan.priceInCents / 100).toLocaleString("pt-BR")}
                   </p>
                   {isSelected && <Check className="w-4 h-4 text-brand ml-auto mt-0.5" />}
                 </div>
@@ -216,7 +214,10 @@ function Step2({ onNext }: Step2Props) {
       <Button
         type="button"
         disabled={!selected}
-        onClick={() => selected && onNext(selected)}
+        onClick={() => {
+          const planConfig = plans.find((p) => p.id === selected)
+          if (selected && planConfig) onNext(selected, planConfig.validityDays)
+        }}
         className="w-full h-11 bg-brand hover:bg-brand-dark text-brand-foreground font-medium transition-colors"
       >
         Continuar
@@ -303,11 +304,12 @@ interface OnboardingState {
   name: string
   email: string
   plan: StudentPlan | null
+  validityDays: number
 }
 
 export function RegisterPageContent() {
   const [step, setStep] = useState<1 | 2 | 3>(1)
-  const [state, setState] = useState<OnboardingState>({ uid: "", name: "", email: "", plan: null })
+  const [state, setState] = useState<OnboardingState>({ uid: "", name: "", email: "", plan: null, validityDays: 30 })
   const { mutate: finishOnboarding, isPending, error } = useOnboarding()
 
   const { title, subtitle } = STEP_TITLES[step]
@@ -317,8 +319,8 @@ export function RegisterPageContent() {
     setStep(2)
   }
 
-  function handleStep2(plan: StudentPlan) {
-    setState((s) => ({ ...s, plan }))
+  function handleStep2(plan: StudentPlan, validityDays: number) {
+    setState((s) => ({ ...s, plan, validityDays }))
     setStep(3)
   }
 
@@ -330,6 +332,7 @@ export function RegisterPageContent() {
       email: state.email,
       plan: state.plan,
       originalTeacherId,
+      validityDays: state.validityDays,
     })
   }
 

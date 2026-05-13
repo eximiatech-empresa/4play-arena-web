@@ -32,7 +32,8 @@ export async function processPlanPurchase(
   planId: Plan,
   playsAmount: number,
   expiresInDays: number,
-  currentBalance: number
+  currentBalance: number,
+  playValue: number,
 ): Promise<void> {
   const batch = writeBatch(db)
 
@@ -47,6 +48,7 @@ export async function processPlanPurchase(
     walletBalance: newBalance,
     currentPlanId: planId,
     planExpiresAt: expiryDate.toISOString(),
+    planPlayValue: playValue,
   })
 
   const txRef = doc(collection(db, "transactions"))
@@ -60,7 +62,7 @@ export async function processPlanPurchase(
     balanceAfter: newBalance,
     professorName: null,
     classLevel: null,
-    isOffPeak: null,
+    isPeak: null,
     createdAt: new Date().toISOString()
   }
   batch.set(txRef, transactionData)

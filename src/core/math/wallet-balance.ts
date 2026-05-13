@@ -1,21 +1,23 @@
 // src/core/math/wallet-balance.ts
 
-import { PLAN_CONFIGS } from "@/core/constants/plan-pricing"
-import type { Transaction, Plan } from "@/core/entities/wallet"
+import type { Transaction } from "@/core/entities/wallet"
 
 /**
  * Derives the student's total plays from their transaction history.
  *
- * Sums all `purchase` and `credit` transactions. Falls back to the plan's
- * default totalPlays when no transactions exist yet.
+ * Sums all `purchase` and `credit` transactions. Falls back to
+ * `defaultTotalPlays` (from the plan's Firebase config) when no
+ * purchase transactions exist yet.
  */
-export function calculateTotalPlays(transactions: Transaction[], planId: Plan): number {
-  const planData = PLAN_CONFIGS[planId]
+export function calculateTotalPlays(
+  transactions: Transaction[],
+  defaultTotalPlays: number,
+): number {
   return (
     transactions
       .filter((t) => t.type === "purchase" || t.type === "credit")
       .reduce((sum, t) => sum + t.amount, 0) ||
-    planData.totalPlays
+    defaultTotalPlays
   )
 }
 

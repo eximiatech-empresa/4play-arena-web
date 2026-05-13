@@ -10,7 +10,9 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { toast } from "sonner"
-import { PLANS, STUDENT_LEVELS } from "@/core/constants/professors"
+import { STUDENT_LEVELS } from "@/core/constants/professors"
+import { usePlans } from "@/features/wallet/hooks/use-plans"
+import type { PlanConfig } from "@/core/constants/plan-pricing"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { useWallet } from "@/features/wallet/hooks/use-wallet"
 import { useUpdateProfile } from "@/features/profile/hooks/use-update-profile"
@@ -50,6 +52,7 @@ type PasswordFormData = z.infer<typeof PasswordFormSchema>
 export function ProfilePageContent() {
   const { data: currentUser, isLoading } = useCurrentUser()
   const { data: wallet } = useWallet()
+  const { data: plans } = usePlans()
 
   if (isLoading) {
     return (
@@ -82,7 +85,9 @@ export function ProfilePageContent() {
       .map((t) => t.lessonId),
   ).size ?? 0
 
-  const plan = currentUser.role === "STUDENT" ? PLANS[currentUser.currentPlanId] : null
+  const plan = currentUser.role === "STUDENT"
+    ? plans?.find((p) => p.id === currentUser.currentPlanId)
+    : null
 
   return (
     <div className="p-4 lg:p-6 pb-24 lg:pb-6 max-w-2xl mx-auto space-y-5">
@@ -281,7 +286,7 @@ function PlanSection({
   plan,
 }: {
   wallet: Wallet
-  plan: (typeof PLANS)[keyof typeof PLANS]
+  plan: PlanConfig | undefined
 }) {
   const expiresAtDate = parsePlanExpiresAt(wallet.expiresAt)
   const { daysLeft, isExpired } = getDaysLeft(expiresAtDate)
@@ -301,7 +306,7 @@ function PlanSection({
       <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-xl">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <p className="text-sm font-bold text-zinc-800">{plan.label}</p>
+            <p className="text-sm font-bold text-zinc-800">{plan?.label ?? "—"}</p>
             <span
               className={cn(
                 "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
@@ -312,7 +317,7 @@ function PlanSection({
             </span>
           </div>
           <p className="text-xs text-zinc-500">
-            {plan.hours}h · R$ {plan.price.toLocaleString("pt-BR")} / {plan.days} dias
+            {plan ? `${plan.totalPlays} Plays · R$ ${(plan.priceInCents / 100).toLocaleString("pt-BR")} / ${plan.validityDays} dias` : "—"}
           </p>
         </div>
         <div className="text-right">

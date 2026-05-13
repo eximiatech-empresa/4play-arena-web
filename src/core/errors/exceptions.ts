@@ -38,3 +38,11 @@ export class RecurrenceInputError extends DomainError {}
 export class SubscriptionNotFoundError extends DomainError {}
 export class SubscriptionAlreadyCanceledError extends DomainError {}
 export class SubscriptionCancelPendingError extends DomainError {}
+
+// Admin Plans
+export class DuplicatePlanIdError extends DomainError {}
+export class InvalidPlanDataError extends DomainError {}
+
+// Package Purchase
+export class InvalidPackagePurchaseError extends DomainError {}
+export class ExpiredPlanError extends DomainError {}

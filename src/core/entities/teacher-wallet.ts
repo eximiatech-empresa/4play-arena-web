@@ -13,7 +13,16 @@ export const TeacherTransactionSchema = z.object({
   studentName: z.string().optional(),
   lessonId: z.string().nullable().optional(),
   type: TeacherTransactionTypeSchema,
+  /** Professor's share of the check-in revenue in BRL. */
   amount: z.number().positive(),
+  /** Plays deducted from the student's wallet. */
+  playsConsumed: z.number().positive().optional(),
+  /** Monetary value of one Play for the student's plan at transaction time (R$). */
+  playValue: z.number().positive().optional(),
+  /** Gross revenue for this check-in (playsConsumed × playValue) in BRL. */
+  rsBruto: z.number().positive().optional(),
+  /** Arena's share of the check-in revenue in BRL. */
+  arenaCredit: z.number().nonnegative().optional(),
   createdAt: z.string(), // ISO string or Firebase timestamp mapped downstream
 })
 

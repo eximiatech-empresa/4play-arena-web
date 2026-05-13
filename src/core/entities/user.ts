@@ -26,17 +26,27 @@ export type AdminUser = z.infer<typeof AdminUserSchema>
 export const TeacherUserSchema = BaseUserSchema.extend({
   role: z.literal("TEACHER"),
   lessonPrice: z.number().nonnegative().default(0),
-  earningsBalance: z.number().nonnegative().default(0),
+  earningsBalance: z.preprocess(
+    (val) => typeof val === "number" && Number.isNaN(val) ? 0 : val,
+    z.number().catch(0)
+  ).default(0),
 })
 export type TeacherUser = z.infer<typeof TeacherUserSchema>
 
 export const StudentUserSchema = BaseUserSchema.extend({
   role: z.literal("STUDENT"),
   level: z.string(),
-  walletBalance: z.number().nonnegative(),
+  walletBalance: z.preprocess(
+    (val) => typeof val === "number" && Number.isNaN(val) ? 0 : val,
+    z.number().catch(0)
+  ),
   originalTeacherId: z.string(),
   currentPlanId: StudentPlanSchema,
   planExpiresAt: z.string(),
+  planPlayValue: z.preprocess(
+    (val) => typeof val === "number" && Number.isNaN(val) ? undefined : val,
+    z.number().positive().optional()
+  ),
 })
 export type StudentUser = z.infer<typeof StudentUserSchema>
 

@@ -8,6 +8,7 @@ import {
   History,
   ReceiptText,
   CalendarDays,
+  PackageOpen,
   type LucideIcon,
 } from "lucide-react"
 
@@ -37,7 +38,7 @@ export const MENU_CONFIG: NavItemConfig[] = [
     label: "Carteira",
     href: "/carteira",
     icon: CreditCard,
-    roles: ["STUDENT", "ADMIN"],
+    roles: ["STUDENT"],
   },
   {
     label: "Carteira",
@@ -79,6 +80,12 @@ export const MENU_CONFIG: NavItemConfig[] = [
     label: "Grade de Aulas",
     href: "/admin-lessons",
     icon: CalendarDays,
+    roles: ["ADMIN"],
+  },
+  {
+    label: "Planos",
+    href: "/admin-plans",
+    icon: PackageOpen,
     roles: ["ADMIN"],
   },
   {

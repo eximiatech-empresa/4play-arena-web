@@ -116,18 +116,28 @@ export function LessonCard({
         </div>
 
         {!isCancelled && (
-          <div className="flex items-center gap-1.5 pt-1">
+          <div className="flex items-center gap-1.5 pt-1 flex-wrap">
             <span
               className={cn(
                 "text-sm font-bold tabular-nums",
-                lesson.isOffPeak ? "text-brand" : "text-foreground",
+                lesson.isPeak ? "text-amber-500" : "text-brand",
               )}
             >
-              -{lesson.previewConsumption.toFixed(2)}h
+              -{lesson.previewConsumption}P
             </span>
-            {lesson.isOffPeak && (
+            {!lesson.isPeak && (
               <span className="text-[10px] font-semibold text-brand bg-brand-subtle px-1.5 py-0.5 rounded-full">
-                Fora de Pico −5%
+                Fora de Pico
+              </span>
+            )}
+            {lesson.isPeak && (
+              <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded-full">
+                Pico +5%
+              </span>
+            )}
+            {lesson.isReserva && (
+              <span className="text-[10px] font-semibold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">
+                Avulso +10%
               </span>
             )}
           </div>

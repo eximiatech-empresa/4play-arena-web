@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { LevelBadge } from "@/components/shared/level-badge"
 import { Mail, Shield, Wallet, History, Info, ShieldOff, ShieldCheck, Pencil, Check, X } from "lucide-react"
 import { useSetUserStatus, useUpdateLessonPrice, type UserListItem } from "../hooks/use-users"
+import { formatCurrency } from "@/utils/formatters"
 
 interface UserDetailsModalProps {
   user: UserListItem | null
@@ -208,8 +209,7 @@ export function UserDetailsModal({ user, open, onOpenChange }: UserDetailsModalP
                 <div>
                   <p className="text-[.8em] font-extrabold text-emerald-700/70 uppercase">Saldo de Ganhos</p>
                   <p className="text-xl font-bold text-emerald-700">
-                    {(user.earningsBalance ?? 0).toFixed(2)}{" "}
-                    <span className="text-sm font-normal">Plays</span>
+                    {formatCurrency(user.earningsBalance ?? 0)}
                   </p>
                 </div>
               </div>

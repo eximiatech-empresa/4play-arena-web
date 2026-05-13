@@ -21,7 +21,6 @@ import { cn } from "@/lib/utils"
 import { getFirebaseAuth } from "@/lib/firebase/auth"
 import { processPlanPurchase } from "@/lib/firebase/transactions"
 import { createSubscription } from "@/lib/firebase/subscription"
-import { PLAN_MULTIPLIERS } from "@/core/math/consumption"
 import { formatCurrency } from "@/utils/formatters"
 import type { Plan } from "@/core/entities/wallet"
 
@@ -76,7 +75,7 @@ function formatExpiry(value: string): string {
 interface PaymentModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  plan: { id: Plan; label: string; price: number; hours: number; days: number }
+  plan: { id: Plan; label: string; price: number; plays: number; days: number; playValue?: number }
   currentBalance: number
 }
 
@@ -112,9 +111,11 @@ export function PaymentModal({ open, onOpenChange, plan, currentBalance }: Payme
 
     setIsPaying(true)
     try {
-      const playsAmount = plan.hours * PLAN_MULTIPLIERS[plan.id]
+      const playsAmount = plan.plays
       const now = new Date().toISOString()
       const periodEnd = new Date(Date.now() + plan.days * 24 * 60 * 60 * 1000).toISOString()
+
+      if (!plan.playValue) throw new Error("Dados do plano incompletos.")
 
       await processPlanPurchase(
         fbUser.uid,
@@ -122,6 +123,7 @@ export function PaymentModal({ open, onOpenChange, plan, currentBalance }: Payme
         playsAmount,
         plan.days,
         currentBalance,
+        plan.playValue,
       )
 
       await createSubscription({
@@ -169,9 +171,21 @@ export function PaymentModal({ open, onOpenChange, plan, currentBalance }: Payme
             <CreditCard className="w-5 h-5 text-brand" />
             Dados de Pagamento
           </DialogTitle>
-          <DialogDescription>
-            Plano {plan.label} ·{" "}
-            <span className="font-semibold text-foreground">{formatCurrency(plan.price)}</span>
+          <DialogDescription asChild>
+            <div className="space-y-0.5">
+              <p>
+                Plano {plan.label} ·{" "}
+                <span className="font-semibold text-foreground">{formatCurrency(plan.price)}</span>
+              </p>
+              <p className="text-xs">
+                {plan.plays} Plays · {plan.days} dias
+                {plan.playValue !== undefined && (
+                  <> · <span className="font-medium text-foreground">
+                    R$ {new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(plan.playValue)}/Play
+                  </span></>
+                )}
+              </p>
+            </div>
           </DialogDescription>
         </DialogHeader>
 

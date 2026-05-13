@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatLessonDateTime } from "@/lib/utils/date"
+import { formatCurrency } from "@/utils/formatters"
 import { LevelBadge } from "@/components/shared/level-badge"
 import { useTeacherHistory, type TeacherLessonHistoryEntry } from "../hooks/use-teacher-history"
 
@@ -54,7 +55,7 @@ export function TeacherHistory() {
           />
           <StatCard
             label="Total ganho"
-            value={`${totalEarned.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}h`}
+            value={formatCurrency(totalEarned)}
           />
           <StatCard
             label="Aulas canceladas"
@@ -256,11 +257,7 @@ function FinishedBands({ entry }: { entry: TeacherLessonHistoryEntry }) {
         <span className="text-xs text-emerald-700 dark:text-emerald-400">
           Ganhos:{" "}
           <strong>
-            {entry.totalEarned.toLocaleString("pt-BR", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-            h
+            {formatCurrency(entry.totalEarned)}
           </strong>
         </span>
       </div>

@@ -28,4 +28,13 @@ export const ERROS = {
   ASSINATURA_NAO_ENCONTRADA: "Assinatura não encontrada.",
   ASSINATURA_JA_CANCELADA: "Assinatura já cancelada.",
   CANCELAMENTO_JA_SOLICITADO: "Cancelamento já solicitado para esta assinatura.",
+
+  // Admin Plans
+  PLANO_ID_DUPLICADO: (id: string) => `Já existe um plano com o ID "${id}".`,
+  PLANO_DADOS_INVALIDOS: "Dados do plano inválidos.",
+  PACOTE_ID_DUPLICADO: (id: string) => `Já existe um pacote com o ID "${id}".`,
+
+  // Package Purchase
+  PACOTE_PLAYS_INVALIDO: "O pacote deve conter pelo menos 1 Play.",
+  PLANO_EXPIRADO_PACOTE: "Seu plano está expirado. Renove o plano antes de comprar um pacote extra.",
 } as const

@@ -11,8 +11,8 @@ import type { Plan } from "@/core/entities/wallet"
  * a Firebase instance.
  *
  * Accepts two call signatures for backward-compat:
- *   - New:  mapRawDocToLesson(id, data, studentId, now, plan?)
- *   - Legacy: mapRawDocToLesson(id, data, studentId, plan, now)
+ * - New:  mapRawDocToLesson(id, data, studentId, now, plan?)
+ * - Legacy: mapRawDocToLesson(id, data, studentId, plan, now)
  *
  * `plan` is optional in both signatures: when omitted, `previewConsumption` defaults to 0.
  *
@@ -31,54 +31,51 @@ export function mapRawDocToLesson(
   id: string,
   data: Record<string, unknown>,
   studentId: string,
-  plan: Plan,
+  plan: Plan | undefined,
   now: Date,
 ): Lesson | null
 export function mapRawDocToLesson(
   id: string,
   data: Record<string, unknown>,
   studentId: string,
-  fourthArg: Date | Plan,
-  fifthArg?: Date | Plan,
+  arg4: Date | Plan | undefined,
+  arg5?: Date | Plan,
 ): Lesson | null {
-  // Resolve which argument is `now` and which is `plan`
-  let resolvedNow: Date
-  let resolvedPlan: Plan | undefined
-
-  if (fourthArg instanceof Date) {
-    // New signature: (id, data, studentId, now, plan?)
-    resolvedNow = fourthArg
-    resolvedPlan = fifthArg as Plan | undefined
-  } else {
-    // Legacy signature: (id, data, studentId, plan, now)
-    resolvedPlan = fourthArg as Plan
-    resolvedNow = fifthArg as Date
-  }
-
   const parsed = LessonDocumentSchema.safeParse({ id, ...data })
   if (!parsed.success) return null
 
   const doc = parsed.data
   const lessonDate = new Date(doc.dateTime)
+
+  const isLegacyCall = typeof arg4 === "string"
+  const resolvedNow = isLegacyCall ? (arg5 as Date) : (arg4 as Date)
+  const resolvedPlan = isLegacyCall ? (arg4 as Plan) : (arg5 as Plan | undefined)
+
+  // Determina se a aula é num horário de pico
   const isPeak = isPeakHour(lessonDate)
   const isReserva = !doc.titularIds.includes(studentId)
 
   let previewConsumption = 0
   if (resolvedPlan !== undefined) {
-    try {
+    // Agora lemos os valores diretamente do documento da aula (Desnormalização)
+    // Sem try/catch silencioso e sem pesquisar por IDs de professores!
+    if (doc.professorBasePlays !== undefined && doc.professorRoundingRule !== undefined) {
       previewConsumption = calculatePlaysConsumed({
-        professorId: doc.professorId,
+        basePlays: doc.professorBasePlays,
+        roundingRule: doc.professorRoundingRule,
         isPeak,
         isReserva,
       })
-    } catch {
+    } else {
+      // Aviso de segurança caso o Admin crie uma aula sem as regras de consumo
+      console.warn(`[Aviso] Aula ${doc.id} não possui os campos financeiros do professor (professorBasePlays).`)
       previewConsumption = 0
     }
   }
 
   const isEnrolled = doc.enrolledStudentIds.includes(studentId)
-  const isTitularOrReserva =
-    doc.titularIds.includes(studentId) || doc.reservaIds.includes(studentId)
+  const isTitularOrReserva = doc.titularIds.includes(studentId) || doc.reservaIds.includes(studentId)
+  
   const checkInStatus = isEnrolled
     ? ("done" as const)
     : getCheckInStatus(lessonDate, isTitularOrReserva, resolvedNow)
@@ -97,6 +94,7 @@ export function mapRawDocToLesson(
     checkInStatus,
     previewConsumption,
     isPeak,
+    isReserva,
     /** @deprecated backward-compat alias for isPeak — use isPeak in new code */
     isOffPeak: !isPeak,
     status: doc.status,
@@ -107,7 +105,11 @@ export function mapRawDocToLesson(
     enrolledStudentIds: doc.enrolledStudentIds,
     checkedInStudentIds: doc.checkedInStudentIds,
     absentStudentIds: doc.absentStudentIds,
-    cancellationReason: doc.cancellationReason,
-    rescheduledToId: doc.rescheduledToId,
-  } satisfies Lesson
+    
+    // Novos campos financeiros desnormalizados exportados para a Entidade Lesson:
+    professorBasePlays: doc.professorBasePlays,
+    professorRoundingRule: doc.professorRoundingRule,
+    professorSharePct: doc.professorSharePct,
+    arenaSharePct: doc.arenaSharePct,
+  }
 }

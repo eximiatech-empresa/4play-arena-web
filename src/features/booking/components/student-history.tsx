@@ -309,10 +309,7 @@ function ContextBand({
             <span>
               Custo:{" "}
               <strong className="text-foreground">
-                {entry.playsSpent.toLocaleString("pt-BR", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}h
+                {entry.playsSpent}P
               </strong>
             </span>
           </span>

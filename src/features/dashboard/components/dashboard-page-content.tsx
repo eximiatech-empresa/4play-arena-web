@@ -852,9 +852,9 @@ export function DashboardPageContent() {
                   </div>
                   <div className="ml-auto text-right">
                     <p className="text-sm font-bold text-brand-dark">
-                      -{nextLesson.previewConsumption?.toFixed(2) || "1.0"} Plays
+                      -{nextLesson.previewConsumption ?? 0}P
                     </p>
-                    {nextLesson.isOffPeak && (
+                    {!nextLesson.isPeak && (
                       <p className="text-[10px] text-brand font-semibold">Fora de Pico</p>
                     )}
                   </div>

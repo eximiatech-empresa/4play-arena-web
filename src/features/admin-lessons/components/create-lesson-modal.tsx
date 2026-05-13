@@ -89,6 +89,11 @@ export function CreateLessonModal({ open, onOpenChange, defaultDateTime }: Creat
         totalSpots: data.totalSpots,
         type: data.type,
         repeatUntil: data.repeatUntil || undefined,
+        // Injetando as propriedades financeiras requiridas (fallbacks)
+        professorBasePlays: (teacher as any).basePlays ?? teacher.lessonPrice ?? 8,
+        professorRoundingRule: (teacher as any).roundingRule ?? "round",
+        professorSharePct: (teacher as any).professorSharePct ?? 0.5,
+        arenaSharePct: (teacher as any).arenaSharePct ?? 0.5,
       },
       { onSuccess: () => handleClose(false) },
     )

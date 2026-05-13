@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Lock,
   TrendingDown,
+  TrendingUp,
   X,
 } from "lucide-react"
 import {
@@ -23,6 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 import { LevelBadge } from "@/components/shared/level-badge"
 import { cn } from "@/lib/utils"
 import { useCheckIn } from "@/features/booking/hooks/use-lessons"
@@ -181,15 +183,36 @@ export function LessonDetailsModal({
               </div>
             </DialogHeader>
 
-            <div className="mt-4 flex items-center gap-2">
-              <span className="text-2xl font-bold text-white tabular-nums">
-                -{displayLesson.previewConsumption.toFixed(2)}h
-              </span>
-              {displayLesson.isOffPeak && (
-                <span className="flex items-center gap-1 text-[11px] font-semibold bg-white/15 text-white px-2 py-1 rounded-full">
-                  <TrendingDown className="w-3 h-3" />
-                  Fora de Pico −5%
+            <div className="mt-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-2xl font-bold text-white tabular-nums">
+                  -{displayLesson.previewConsumption}P
                 </span>
+                {!displayLesson.isPeak && (
+                  <span className="flex items-center gap-1 text-[11px] font-semibold bg-white/15 text-white px-2 py-1 rounded-full">
+                    <TrendingDown className="w-3 h-3" />
+                    Fora de Pico
+                  </span>
+                )}
+                {displayLesson.isPeak && (
+                  <span className="flex items-center gap-1 text-[11px] font-semibold bg-amber-400/25 text-amber-200 px-2 py-1 rounded-full">
+                    <TrendingUp className="w-3 h-3" />
+                    Horário de Pico +5%
+                  </span>
+                )}
+                {displayLesson.isReserva && (
+                  <span className="flex items-center gap-1 text-[11px] font-semibold bg-white/10 text-white/80 px-2 py-1 rounded-full">
+                    <Users className="w-3 h-3" />
+                    Avulso +10%
+                  </span>
+                )}
+              </div>
+              {displayLesson.professorBasePlays !== undefined && (
+                <p className="text-[11px] text-white/55 mt-1.5">
+                  Base {displayLesson.professorName}: {displayLesson.professorBasePlays}P
+                  {displayLesson.isPeak && " × 1,05 (pico)"}
+                  {displayLesson.isReserva && " × 1,10 (avulso)"}
+                </p>
               )}
             </div>
           </div>
@@ -274,11 +297,19 @@ export function LessonDetailsModal({
                 </div>
               ) : (
                 <Button
-                  onClick={() =>
+                  onClick={() => {
+                    console.log("Iniciando Check-in com os dados:", displayLesson)
                     checkIn.mutate(displayLesson, {
-                      onSuccess: (updated) => setLessonOverride(updated),
+                      onSuccess: (updated) => {
+                        setLessonOverride(updated)
+                        toast.success("Check-in realizado com sucesso!")
+                      },
+                      onError: (error) => {
+                        console.error("Erro no check-in:", error)
+                        toast.error(error.message || "Erro ao realizar check-in.")
+                      }
                     })
-                  }
+                  }}
                   disabled={!isActionable || checkIn.isPending}
                   className={cn(
                     "w-full h-10 font-semibold transition-colors",

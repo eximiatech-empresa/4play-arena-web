@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest"
+    "test": "vitest",
+    "seed:plans": "tsx scripts/seed-plans.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

@@ -1,6 +1,6 @@
 // src/core/math/consumption.ts
 
-import { getProfessorById, PEAK_WINDOW } from "@/core/constants/professors"
+import { PEAK_WINDOW } from "@/core/constants/professors"
 import { CheckInStatus } from "../entities/lesson"
 import {
   MS_PER_HOUR,
@@ -11,8 +11,6 @@ import {
   PEAK_MULTIPLIER,
   RESERVE_MULTIPLIER,
 } from "@/core/constants/booking-rules"
-import { ProfessorNotFoundError } from "@/core/errors/exceptions"
-import { ERROS } from "@/core/errors/erros"
 
 // ─── Peak / off-peak helpers ──────────────────────────────────────────────────
 
@@ -34,35 +32,36 @@ export function isOffPeak(date: Date): boolean {
 
 // ─── Plays calculation ────────────────────────────────────────────────────────
 
+export type RoundingRule = "round" | "ceil"
+
 /**
  * Calculates the integer number of Plays consumed for a single check-in.
  *
+ * Receives pricing params directly — no PROFESSOR_MAP lookup.
+ * Values must be snapshotted into the lesson document at creation time
+ * so they are independent of runtime configuration.
+ *
  * Order of operations (per spec §4):
- *  1. basePlays from professor table
+ *  1. basePlays
  *  2. × PEAK_MULTIPLIER (1.05) if isPeak
  *  3. × RESERVE_MULTIPLIER (1.10) if isReserva
- *  4. round (Math.round) or ceil (Math.ceil) depending on professor's roundingRule
+ *  4. round (Math.round) or ceil (Math.ceil) per roundingRule
  */
 export function calculatePlaysConsumed({
-  professorId,
+  basePlays,
+  roundingRule,
   isPeak,
   isReserva,
 }: {
-  professorId: string
+  basePlays: number
+  roundingRule: RoundingRule
   isPeak: boolean
   isReserva: boolean
 }): number {
-  const config = getProfessorById(professorId)
-  if (!config) {
-    throw new ProfessorNotFoundError(ERROS.PROFESSOR_NAO_ENCONTRADO(professorId))
-  }
-
-  let raw = config.basePlays
-
+  let raw = basePlays
   if (isPeak) raw *= PEAK_MULTIPLIER
   if (isReserva) raw *= RESERVE_MULTIPLIER
-
-  return config.roundingRule === "ceil" ? Math.ceil(raw) : Math.round(raw)
+  return roundingRule === "ceil" ? Math.ceil(raw) : Math.round(raw)
 }
 
 // ─── Level eligibility ────────────────────────────────────────────────────────

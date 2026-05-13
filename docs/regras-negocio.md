@@ -29,13 +29,13 @@ Plays por aula (definido pelo professor, ver seção 3).
 Plano Preço (R$) Plays Validade R$/Play
 ```
 ```
-Mensal 410,00 80 30 dias 5,
+Mensal 410,00 80 30 dias 5,1250
 ```
 ```
-Trimestral 1.140,00 240 90 dias 4,
+Trimestral 1.140,00 240 90 dias 4,7500
 ```
 ```
-Semestral 2.070,00 480 180 dias 4,
+Semestral 2.070,00 480 180 dias 4,3125
 ```
 ## 3. Consumo Base de Plays por Aula (Fora do Pico, Aluno Titular)
 
@@ -243,6 +243,36 @@ Receita por professor, por turma e por aula.
 8. Relatório mensal de remuneração por professor (fechamento para pagamento).
 9. Dashboard de indicadores (seção 12).
 10. Validações de borda (seção 11).
+
+## 14. Pacotes Extras de Plays
+
+Pacotes extras são recargas avulsas de Plays que o aluno pode comprar independentemente do ciclo de renovação do plano.
+
+**Comportamento:**
+
+```
+wallet.balance    += pacote.plays
+wallet.totalPlays += pacote.plays
+wallet.playValue   permanece intocado  ← usa o R$/Play do plano vigente do aluno
+wallet.expiresAt   permanece intocado  ← a validade do plano não é alterada
+wallet.plan        permanece intocado
+```
+
+**Exemplo:**
+
+```
+Aluno tem: saldo 50P a R$ 4,75/Play (plano trimestral)
+Compra pacote extra de 20P
+Resultado: 70P a R$ 4,75/Play  ← R$/Play e validade não mudam
+```
+
+**Regra de negócio confirmada — Pacote com plano expirado:**
+
+O plano é o "passaporte" do aluno para as aulas. Um pacote extra é apenas uma recarga de combustível — sem passaporte válido, o combustível não tem utilidade.
+
+**Decisão:** a compra de pacote extra é **bloqueada** quando o plano está expirado. O aluno deve primeiro renovar o plano e então comprar o pacote. Implementado em `src/core/usecases/wallet/purchase-package.ts` via `ExpiredPlanError`.
+
+Consequência direta: um aluno nunca chegará ao estado de ter Plays de pacote mas plano expirado, portanto a regra de check-in (plano expirado bloqueia entrada) não precisa de caso especial para Plays de pacote.
 
 _FIM DO DOCUMENTO._
 

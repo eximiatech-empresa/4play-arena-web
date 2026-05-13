@@ -11,6 +11,7 @@ import {
   orderBy,
   arrayUnion,
   arrayRemove,
+  increment,
 } from "firebase/firestore"
 import { db } from "./firestore"
 import { mapRawDocToLesson } from "@/core/mappers/lesson.mapper"
@@ -24,10 +25,11 @@ import {
   InsufficientBalanceError,
 } from "@/core/errors/exceptions"
 import { ERROS } from "@/core/errors/erros"
+import { PLAN_CONFIGS } from "@/core/constants/plan-pricing"
+import { calculateCheckinRevenue } from "@/core/math/financial-engine"
 import type { Lesson } from "@/core/entities/lesson"
 import type { LessonHistoryEntry, TeacherLessonHistoryEntry } from "@/core/entities/lesson"
-import type { Transaction } from "@/core/entities/wallet"
-import type { Plan } from "@/core/entities/wallet"
+import type { Transaction, Plan } from "@/core/entities/wallet"
 
 export async function getLessons(
   studentId: string,
@@ -106,7 +108,8 @@ export async function processCheckIn(
   playsCost: number,   // previewConsumption — used as fallback if professor has no lessonPrice
   professorName: string,
   classLevel: string,
-  offPeak: boolean,
+  isPeak: boolean,
+  isReserva: boolean,
 ): Promise<void> {
   const userRef    = doc(db, "users", studentId)
   const lessonRef  = doc(db, "lessons", lessonId)
@@ -138,18 +141,49 @@ export async function processCheckIn(
         ? professorData.lessonPrice
         : playsCost
 
-    const currentBalance: number = userSnap.data().walletBalance ?? 0
+    const userData = userSnap.data()
+    const currentBalance: number = userData.walletBalance ?? 0
     if (currentBalance < actualCost) throw new InsufficientBalanceError(ERROS.SALDO_INSUFICIENTE)
 
     const newStudentBalance = currentBalance - actualCost
-    const currentEarnings: number = professorData?.earningsBalance ?? 0
+    const currentEarnings: number = professorData?.earningsBalance || 0
     const now = new Date().toISOString()
 
+    // Use planPlayValue frozen at purchase time; fall back to PLAN_CONFIGS for older docs
+    const currentPlanId = (userData.currentPlanId ?? "mensal") as Plan
+    let playValue: number = Number(
+      userData.wallet?.playValue ??
+      userData.planPlayValue ??
+      PLAN_CONFIGS[currentPlanId]?.playValue ??
+      PLAN_CONFIGS.mensal.playValue
+    )
+
+    // Fallback agressivo se o valor veio como NaN do banco histórico
+    if (Number.isNaN(playValue) || playValue <= 0) {
+      playValue = Number(PLAN_CONFIGS[currentPlanId]?.playValue ?? PLAN_CONFIGS.mensal.playValue)
+    }
+    
+    console.log("[DEBUG CHECK-IN] Dados para validação", {
+      studentId,
+      currentPlanId,
+      originalPlayValue: userData.wallet?.playValue ?? userData.planPlayValue,
+      resolvedPlayValue: playValue,
+      isNanPlayValue: Number.isNaN(playValue)
+    })
+
+    if (Number.isNaN(playValue) || playValue <= 0) {
+      throw new Error("CRÍTICO: Aluno não possui playValue válido para realizar check-in.")
+    }
+
+    if (Number.isNaN(newStudentBalance)) {
+      throw new Error("CRÍTICO: Tentativa de salvar NaN (novo saldo do aluno) no banco de dados evitada.")
+    }
+
     // ── 2. Writes ─────────────────────────────────────────────────────────────
-    tx.update(userRef, { walletBalance: newStudentBalance })
+    tx.update(userRef, { walletBalance: increment(-actualCost) })
     tx.update(lessonRef, { enrolledStudentIds: arrayUnion(studentId) })
 
-    // Student debit transaction
+    // Student debit transaction — includes playValue for monetary audit trail
     const txRef = doc(collection(db, "transactions"))
     tx.set(txRef, {
       id: txRef.id,
@@ -161,13 +195,26 @@ export async function processCheckIn(
       balanceAfter: newStudentBalance,
       professorName,
       classLevel,
-      isOffPeak: offPeak,
+      isPeak,
+      isReserva,
+      playValue,
       createdAt: now,
     } satisfies Transaction)
 
     // Professor earnings + teacher_transactions only if professor doc exists
     if (professorSnap.exists()) {
-      tx.update(professorRef, { earningsBalance: currentEarnings + actualCost })
+      const shareConfig = {
+        professorSharePct: lessonData.professorSharePct ?? 0.5,
+        arenaSharePct: lessonData.arenaSharePct ?? 0.5,
+      }
+      const revenue = calculateCheckinRevenue(actualCost, playValue, shareConfig)
+      
+      const newProfBalance = currentEarnings + revenue.professorCredit
+      if (Number.isNaN(newProfBalance) || Number.isNaN(revenue.professorCredit)) {
+        throw new Error("CRÍTICO: Tentativa de salvar NaN (saldo do professor) no banco de dados evitada.")
+      }
+
+      tx.update(professorRef, { earningsBalance: increment(revenue.professorCredit) })
 
       const teacherTxRef = doc(collection(db, "teacher_transactions"))
       tx.set(teacherTxRef, {
@@ -177,7 +224,11 @@ export async function processCheckIn(
         studentName: userSnap.data().name ?? null,
         lessonId,
         type: "CHECK_IN_CREDIT",
-        amount: actualCost,
+        amount: revenue.professorCredit,
+        playsConsumed: actualCost,
+        playValue,
+        rsBruto: revenue.rsBruto,
+        arenaCredit: revenue.arenaCredit,
         createdAt: now,
       })
     }
@@ -203,7 +254,14 @@ export async function processCheckOut(
     const userSnap = await getDoc(userRef)
 
     if (userSnap.exists()) {
-      const newBalance = (userSnap.data().walletBalance ?? 0) + playsRefund
+      const currentBalance = (typeof userSnap.data().walletBalance === "number" && !Number.isNaN(userSnap.data().walletBalance)) 
+        ? userSnap.data().walletBalance 
+        : 0
+      const newBalance = currentBalance + playsRefund
+
+      if (Number.isNaN(newBalance)) {
+        throw new Error("CRÍTICO: Tentativa de salvar NaN (novo saldo do aluno no checkout) evitada.")
+      }
 
       batch.update(userRef, { walletBalance: newBalance })
 
@@ -218,7 +276,7 @@ export async function processCheckOut(
         balanceAfter: newBalance,
         professorName: `${professorName} (Estorno)`,
         classLevel: null,
-        isOffPeak: null,
+        isPeak: null,
         createdAt: new Date().toISOString(),
       }
       batch.set(txRef, tx)
@@ -306,7 +364,7 @@ export async function cancelLesson(lessonId: string, reason: string): Promise<vo
         balanceAfter: newBalance,
         professorName: `${lessonData.professorName} (Cancelamento)`,
         classLevel: lessonData.level,
-        isOffPeak: null,
+        isPeak: null,
         createdAt: now,
       } satisfies Transaction)
     }

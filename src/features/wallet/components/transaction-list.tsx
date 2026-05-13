@@ -20,6 +20,7 @@ function getTransactionDescription(tx: Transaction, plan: Plan): string {
     const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1)
     return `Recarga - Plano ${planLabel}`
   }
+  if (tx.type === "package") return "Pacote Extra de Plays"
   if (tx.type === "debit" && tx.professorName) return `Aula com ${tx.professorName}`
   if (tx.type === "expiration") return "Plays expirados"
   if (tx.type === "adjustment") return "Ajuste administrativo"
@@ -115,7 +116,7 @@ function TransactionRow({ transaction: tx, plan }: { transaction: Transaction; p
         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
           <p className="text-xs text-zinc-400">{formatDateTimeBR(tx.createdAt)}</p>
           {tx.classLevel && <LevelBadge level={tx.classLevel} size="xs" />}
-          {tx.isOffPeak && (
+          {tx.isPeak === false && (
             <span className="text-[9px] font-semibold text-brand uppercase tracking-wide">
               Fora de Pico
             </span>

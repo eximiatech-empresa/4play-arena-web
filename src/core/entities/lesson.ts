@@ -34,6 +34,14 @@ export const LessonDocumentSchema = z.object({
   rescheduledToId: z.string().optional(),
   // Populated on the new lesson doc created from a reschedule
   rescheduledFromId: z.string().optional(),
+  // ── Denormalized professor pricing (snapshotted at lesson creation) ──────────
+  // Eliminates runtime lookup by professorId. Independent of Firebase UIDs and
+  // PROFESSOR_MAP slugs — the math engine receives these values directly.
+  // Optional for backward compat with lessons created before this migration.
+  professorBasePlays: z.number().int().positive().optional(),
+  professorRoundingRule: z.enum(["round", "ceil"]).optional(),
+  professorSharePct: z.number().min(0).max(1).optional(),
+  arenaSharePct: z.number().min(0).max(1).optional(),
 })
 
 export type LessonDocument = z.infer<typeof LessonDocumentSchema>
@@ -65,6 +73,8 @@ export const LessonSchema = z.object({
   previewConsumption: z.number().nonnegative(),
   /** True when the class falls inside the peak window (18h–20h). */
   isPeak: z.boolean(),
+  /** True when the student is NOT a titular of this class (avulso/reserva — pays +10%). */
+  isReserva: z.boolean(),
   /**
    * @deprecated Renamed to isPeak. Retained for backward-compat with components
    * that have not been migrated yet.
@@ -81,6 +91,10 @@ export const LessonSchema = z.object({
   cancellationReason: z.string().nullish(),
   rescheduledToId: z.string().optional(),
   rescheduledFromId: z.string().optional(),
+  professorBasePlays: z.number().int().positive().optional(),
+  professorRoundingRule: z.enum(["round", "ceil"]).optional(),
+  professorSharePct: z.number().min(0).max(1).optional(),
+  arenaSharePct: z.number().min(0).max(1).optional(),
 })
 
 export const ProfessorSchema = z.object({
@@ -131,6 +145,10 @@ export interface CreateLessonInput {
   totalSpots: number
   type: "avulsa" | "recorrente"
   repeatUntil?: string
+  professorBasePlays: number
+  professorRoundingRule: string
+  professorSharePct: number
+  arenaSharePct: number
 }
 
 // ─── Lesson history entries ────────────────────────────────────────────────────

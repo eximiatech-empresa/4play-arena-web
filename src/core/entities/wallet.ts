@@ -2,7 +2,7 @@
 
 import { z } from "zod"
 
-export const PlanSchema = z.enum(["mensal", "trimestral", "semestral"])
+export const PlanSchema = z.string().min(1)
 
 export const TransactionTypeSchema = z.enum([
   "debit",
@@ -10,6 +10,7 @@ export const TransactionTypeSchema = z.enum([
   "expiration",
   "adjustment",
   "purchase",
+  "package",
 ])
 
 export const TransactionSchema = z.object({
@@ -39,11 +40,11 @@ export const TransactionSchema = z.object({
 export const WalletSchema = z.object({
   id: z.string(),
   studentId: z.string(),
-  balance: z.number().nonnegative(),
+  balance: z.preprocess((val) => typeof val === "number" && Number.isNaN(val) ? 0 : val, z.number().catch(0)),
   totalPlays: z.number().positive(),
   plan: PlanSchema,
   /** Monetary value of one Play for this wallet's plan. */
-  playValue: z.number().positive().optional(),
+  playValue: z.preprocess((val) => typeof val === "number" && Number.isNaN(val) ? undefined : val, z.number().positive().optional()),
   /**
    * @deprecated Renamed to playValue. Retained for backward-compat with legacy
    * Firestore documents and features that have not been migrated yet.
