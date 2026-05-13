@@ -64,14 +64,16 @@ function DayCell({
   lessons,
   isToday,
   onClick,
+  weekdayLabel,
 }: {
   day: number | null
   lessons: LessonDocument[]
   isToday: boolean
   onClick: () => void
+  weekdayLabel?: string
 }) {
   if (day === null) {
-    return <div className="bg-muted/20 border border-border/40 rounded-xl min-h-22.5 lg:min-h-27.5" />
+    return <div className="hidden lg:block bg-muted/20 border border-border/40 rounded-xl min-h-[90px] lg:min-h-27.5" />
   }
 
   const visible = lessons.slice(0, 3)
@@ -80,22 +82,29 @@ function DayCell({
   return (
     <button
       onClick={onClick}
-      className="border border-border rounded-xl p-2 min-h-22.5 lg:min-h-27.5 flex flex-col gap-1 text-left transition-all w-full bg-card hover:border-brand/40 hover:bg-muted/30 hover:shadow-sm cursor-pointer"
+      className="border border-border rounded-xl p-3 lg:p-2 min-h-[70px] lg:min-h-27.5 flex flex-col gap-2 lg:gap-1 text-left transition-all w-full bg-card hover:border-brand/40 hover:bg-muted/30 hover:shadow-sm cursor-pointer"
     >
-      <span
-        className={cn(
-          "self-end text-xs font-bold leading-none w-5 h-5 flex items-center justify-center rounded-full shrink-0",
-          isToday ? "bg-brand text-white" : "text-zinc-500 dark:text-zinc-400",
+      <div className="flex items-center justify-between w-full lg:justify-end">
+        {weekdayLabel && (
+          <span className="text-xs font-medium text-zinc-500 lg:hidden">
+            {weekdayLabel}
+          </span>
         )}
-      >
-        {day}
-      </span>
-      <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+        <span
+          className={cn(
+            "text-xs font-bold leading-none w-6 h-6 lg:w-5 lg:h-5 flex items-center justify-center rounded-full shrink-0",
+            isToday ? "bg-brand text-white" : "text-zinc-600 dark:text-zinc-300",
+          )}
+        >
+          {day}
+        </span>
+      </div>
+      <div className="flex flex-col gap-1 lg:gap-0.5 flex-1 min-w-0 w-full">
         {visible.map((l) => (
           <LessonChip key={l.id} lesson={l} />
         ))}
         {overflow > 0 && (
-          <span className="text-[10px] text-zinc-400 pl-1 font-medium">+{overflow}</span>
+          <span className="text-[10px] text-zinc-400 pl-1 font-medium">+{overflow} aulas</span>
         )}
       </div>
     </button>
@@ -123,15 +132,17 @@ function FiltersBar({
   const hasActive = Object.values(filters).some(Boolean)
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+    <div className="flex flex-col sm:flex-row flex-wrap sm:items-center gap-2">
+      <div className="hidden sm:flex items-center gap-2 mr-1">
+        <SlidersHorizontal className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+      </div>
 
       {/* Professor */}
       <Select
         value={filters.professorId || "__all__"}
         onValueChange={(v) => onChange({ ...filters, professorId: v === "__all__" ? "" : v })}
       >
-        <SelectTrigger className="h-8 text-xs w-40 border-border cursor-pointer hover:bg-zinc-200">
+        <SelectTrigger className="h-9 sm:h-8 text-xs w-full sm:w-40 border-border cursor-pointer hover:bg-zinc-200">
           <SelectValue placeholder="Professor" />
         </SelectTrigger>
         <SelectContent >
@@ -147,7 +158,7 @@ function FiltersBar({
         value={filters.level || "__all__"}
         onValueChange={(v) => onChange({ ...filters, level: v === "__all__" ? "" : v })}
       >
-        <SelectTrigger className="h-8 text-xs w-36 border-border cursor-pointer hover:bg-zinc-200">
+        <SelectTrigger className="h-9 sm:h-8 text-xs w-full sm:w-36 border-border cursor-pointer hover:bg-zinc-200">
           <SelectValue placeholder="Nível" />
         </SelectTrigger>
         <SelectContent>
@@ -163,7 +174,7 @@ function FiltersBar({
         value={filters.status || "__all__"}
         onValueChange={(v) => onChange({ ...filters, status: v === "__all__" ? "" : v })}
       >
-        <SelectTrigger className="h-8 text-xs w-32 border-border cursor-pointer hover:bg-zinc-200">
+        <SelectTrigger className="h-9 sm:h-8 text-xs w-full sm:w-32 border-border cursor-pointer hover:bg-zinc-200">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
@@ -177,7 +188,7 @@ function FiltersBar({
       {hasActive && (
         <button
           onClick={() => onChange(EMPTY_FILTERS)}
-          className="flex items-center gap-1 text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors ml-1"
+          className="flex items-center justify-center sm:justify-start gap-1 text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors ml-1 h-9 sm:h-auto"
         >
           <X className="w-3 h-3" />
           Limpar
@@ -251,14 +262,14 @@ export function AdminLessonsContent() {
   return (
     <div className="p-4 lg:p-8 space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold text-zinc-800 dark:text-zinc-100">Grade de Aulas</h1>
           <p className="text-sm text-zinc-500 mt-0.5">Gerencie a grade mensal de aulas</p>
         </div>
         <Button
           onClick={() => { setDefaultDateTime(toDatetimeInput(year, month, today.getDate())); setCreateModalOpen(true) }}
-          className="bg-brand hover:bg-brand-dark text-white gap-2 cursor-pointer"
+          className="bg-brand hover:bg-brand-dark text-white gap-2 cursor-pointer w-full sm:w-auto"
         >
           <Plus className="w-4 h-4" />
           Criar Aula
@@ -269,36 +280,41 @@ export function AdminLessonsContent() {
       <FiltersBar filters={filters} onChange={setFilters} />
 
       {/* Month navigation */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={prevMonth}
-          className="p-1.5 rounded-lg hover:bg-muted transition-colors cursor-pointer"
-          aria-label="Mês anterior"
-        >
-          <ChevronLeft className="w-4 h-4 text-zinc-500" />
-        </button>
-        <span className="text-base font-semibold text-zinc-800 dark:text-zinc-100 w-44 text-center">
-          {MONTHS_PT[month]} {year}
-        </span>
-        <button
-          onClick={nextMonth}
-          className="p-1.5 rounded-lg hover:bg-muted transition-colors cursor-pointer"
-          aria-label="Próximo mês"
-        >
-          <ChevronRight className="w-4 h-4 text-zinc-500" />
-        </button>
-        {isLoading && <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />}
-        {Object.values(filters).some(Boolean) && (
-          <span className="text-xs text-brand font-medium">
-            {filtered.length} de {lessons.length} aulas
+      <div className="flex items-center justify-between sm:justify-start w-full sm:w-auto gap-3 py-2">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={prevMonth}
+            className="p-1.5 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+            aria-label="Mês anterior"
+          >
+            <ChevronLeft className="w-5 h-5 text-zinc-500" />
+          </button>
+          <span className="text-base font-semibold text-zinc-800 dark:text-zinc-100 min-w-[140px] text-center capitalize">
+            {MONTHS_PT[month]} {year}
           </span>
-        )}
+          <button
+            onClick={nextMonth}
+            className="p-1.5 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+            aria-label="Próximo mês"
+          >
+            <ChevronRight className="w-5 h-5 text-zinc-500" />
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          {isLoading && <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />}
+          {Object.values(filters).some(Boolean) && (
+            <span className="text-xs text-brand font-medium hidden sm:inline-block">
+              {filtered.length} de {lessons.length} aulas
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Calendar grid */}
-      <div className="overflow-x-auto">
-        <div className="min-w-140">
-          <div className="grid grid-cols-7 gap-1.5 mb-1.5">
+      <div className="-mx-4 px-4 lg:mx-0 lg:px-0 pb-4">
+        <div className="w-full">
+          {/* Weekday headers for desktop only */}
+          <div className="hidden lg:grid grid-cols-7 gap-1.5 mb-1.5">
             {WEEKDAYS.map((wd) => (
               <div key={wd} className="text-center text-xs font-medium text-zinc-400 py-1">
                 {wd}
@@ -306,11 +322,12 @@ export function AdminLessonsContent() {
             ))}
           </div>
 
-          <div className="grid grid-cols-7 gap-1.5">
+          <div className="grid grid-cols-1 gap-2 lg:grid-cols-7 lg:gap-1.5">
             {cells.map((day, idx) => (
               <DayCell
                 key={idx}
                 day={day}
+                weekdayLabel={WEEKDAYS[idx % 7]}
                 lessons={day !== null ? (byDay[day] ?? []) : []}
                 isToday={
                   day !== null &&
