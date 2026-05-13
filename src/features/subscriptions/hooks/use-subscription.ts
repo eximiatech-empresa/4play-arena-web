@@ -5,8 +5,10 @@ import {
   cancelSubscription,
   getSubscriptionHistory,
 } from "@/lib/firebase/subscription"
+import { getStudentPackageTransactions } from "@/lib/firebase/transactions"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import type { SubscriptionDocument } from "@/core/entities/subscription"
+import type { Transaction } from "@/core/entities/wallet"
 
 export const SUBSCRIPTION_QUERY_KEY = ["subscription"] as const
 
@@ -35,6 +37,18 @@ export function useSubscriptionHistory(studentId?: string) {
   return useQuery({
     queryKey: [...SUBSCRIPTION_QUERY_KEY, "history", targetId],
     queryFn: () => getSubscriptionHistory(targetId!),
+    enabled: !!targetId,
+    staleTime: 3 * 60 * 1000,
+  })
+}
+
+export function usePackageTransactions(studentId?: string) {
+  const { data: currentUser } = useCurrentUser()
+  const targetId = studentId ?? currentUser?.uid
+
+  return useQuery({
+    queryKey: ["package-transactions", targetId],
+    queryFn: (): Promise<Transaction[]> => getStudentPackageTransactions(targetId!),
     enabled: !!targetId,
     staleTime: 3 * 60 * 1000,
   })

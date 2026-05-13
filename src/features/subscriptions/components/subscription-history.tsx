@@ -1,12 +1,13 @@
 "use client"
 
-import { AlertTriangle, CreditCard, RefreshCw, ShoppingBag, ReceiptText } from "lucide-react"
+import { AlertTriangle, CreditCard, RefreshCw, ShoppingBag, ReceiptText, PackagePlus } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useSubscriptionHistory } from "@/features/subscriptions/hooks/use-subscription"
+import { useSubscriptionHistory, usePackageTransactions } from "@/features/subscriptions/hooks/use-subscription"
 import { usePlans } from "@/features/wallet/hooks/use-plans"
-import { formatCurrency } from "@/utils/formatters"
+import { formatCurrency, formatDateTimeBR } from "@/utils/formatters"
 import type { SubscriptionDocument, SubscriptionStatus } from "@/core/entities/subscription"
 import type { PlanConfig } from "@/core/constants/plan-pricing"
+import type { Transaction } from "@/core/entities/wallet"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -85,9 +86,7 @@ function RenewalBadge({ autoRenew }: { autoRenew: boolean }) {
 // ─── Active plan hero card ────────────────────────────────────────────────────
 
 function ActivePlanCard({ sub, planData }: { sub: SubscriptionDocument; planData: PlanConfig | undefined }) {
-  if (!planData) return null
-
-  const totalPlays = planData.totalPlays
+  const totalPlays = planData?.totalPlays
 
   return (
     <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
@@ -112,12 +111,14 @@ function ActivePlanCard({ sub, planData }: { sub: SubscriptionDocument; planData
       <div className="p-6 space-y-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-2xl font-bold text-foreground">{planData.label}</p>
+            <p className="text-2xl font-bold text-foreground">{planData?.label ?? sub.planId}</p>
             <p className="text-sm text-zinc-400 mt-0.5">
-              {totalPlays} Plays · {planData.validityDays} dias
+              {totalPlays != null ? `${totalPlays} Plays · ` : ""}{planData?.validityDays != null ? `${planData.validityDays} dias` : ""}
             </p>
           </div>
-          <p className="text-xl font-bold text-brand shrink-0">{formatCurrency(planData.priceInCents / 100)}</p>
+          {planData && (
+            <p className="text-xl font-bold text-brand shrink-0">{formatCurrency(planData.priceInCents / 100)}</p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -170,21 +171,21 @@ function ActivePlanCard({ sub, planData }: { sub: SubscriptionDocument; planData
 // ─── History card ─────────────────────────────────────────────────────────────
 
 function HistoryCard({ sub, planData }: { sub: SubscriptionDocument; planData: PlanConfig | undefined }) {
-  if (!planData) return null
-
   return (
     <div className="bg-card rounded-xl border border-border p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
             <StatusBadge status={sub.status} />
-            <span className="text-sm font-semibold text-foreground">{planData.label}</span>
-            <span className="text-sm text-zinc-400">{formatCurrency(planData.priceInCents / 100)}</span>
+            <span className="text-sm font-semibold text-foreground">{planData?.label ?? sub.planId}</span>
+            {planData && (
+              <span className="text-sm text-zinc-400">{formatCurrency(planData.priceInCents / 100)}</span>
+            )}
           </div>
 
           <p className="text-xs text-zinc-400">
-            {fmtDate(sub.currentPeriodStart)} → {fmtDate(sub.currentPeriodEnd)} ·{" "}
-            {planData.validityDays} dias
+            {fmtDate(sub.currentPeriodStart)} → {fmtDate(sub.currentPeriodEnd)}
+            {planData?.validityDays != null ? ` · ${planData.validityDays} dias` : ""}
           </p>
 
           <div className="flex items-center gap-3 flex-wrap">
@@ -217,6 +218,30 @@ function HistoryCard({ sub, planData }: { sub: SubscriptionDocument; planData: P
         <span className="text-[10px] text-zinc-300 whitespace-nowrap shrink-0 mt-0.5">
           via Pagar.me (teste)
         </span>
+      </div>
+    </div>
+  )
+}
+
+// ─── Package card ─────────────────────────────────────────────────────────────
+
+function PackageCard({ tx }: { tx: Transaction }) {
+  return (
+    <div className="bg-card rounded-xl border border-border p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-brand-subtle flex items-center justify-center shrink-0">
+            <PackagePlus className="w-4 h-4 text-brand" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Pacote Extra de Plays</p>
+            <p className="text-xs text-zinc-400 mt-0.5">{formatDateTimeBR(tx.createdAt)}</p>
+          </div>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-sm font-bold text-brand-dark tabular-nums">+{tx.amount} Plays</p>
+          <p className="text-xs text-zinc-400 tabular-nums">Saldo: {tx.balanceAfter.toFixed(2)}</p>
+        </div>
       </div>
     </div>
   )
@@ -270,6 +295,7 @@ function EmptyState() {
 
 export function SubscriptionHistory() {
   const { data: subscriptions, isLoading } = useSubscriptionHistory()
+  const { data: packageTxs = [], isLoading: isLoadingPackages } = usePackageTransactions()
   const { data: plans } = usePlans()
 
   const planMap = new Map<string, PlanConfig>(plans?.map((p) => [p.id, p]))
@@ -278,6 +304,8 @@ export function SubscriptionHistory() {
     (s) => s.status === "active" || s.status === "trialing",
   )
 
+  const hasAnyData = subscriptions?.length || packageTxs.length
+
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6">
       <div>
@@ -285,9 +313,9 @@ export function SubscriptionHistory() {
         <p className="text-sm text-zinc-400 mt-0.5">Histórico de compras e renovações</p>
       </div>
 
-      {isLoading ? (
+      {isLoading || isLoadingPackages ? (
         <LoadingSkeleton />
-      ) : !subscriptions?.length ? (
+      ) : !hasAnyData ? (
         <EmptyState />
       ) : (
         <>
@@ -295,16 +323,31 @@ export function SubscriptionHistory() {
             <ActivePlanCard sub={activeSub} planData={planMap.get(activeSub.planId)} />
           )}
 
-          <div>
-            <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wide mb-3">
-              Histórico ({subscriptions.length})
-            </h2>
-            <div className="space-y-3">
-              {subscriptions.map((sub) => (
-                <HistoryCard key={sub.id} sub={sub} planData={planMap.get(sub.planId)} />
-              ))}
+          {subscriptions && subscriptions.length > 0 && (
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wide mb-3">
+                Planos ({subscriptions.length})
+              </h2>
+              <div className="space-y-3">
+                {subscriptions.map((sub) => (
+                  <HistoryCard key={sub.id} sub={sub} planData={planMap.get(sub.planId)} />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {packageTxs.length > 0 && (
+            <div>
+              <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-wide mb-3">
+                Pacotes Extras ({packageTxs.length})
+              </h2>
+              <div className="space-y-3">
+                {packageTxs.map((tx) => (
+                  <PackageCard key={tx.id} tx={tx} />
+                ))}
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
