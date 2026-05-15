@@ -1,4 +1,4 @@
-import { ForcePasswordChangeContent } from "@/features/auth/components/force-password-change-content"
+import { ForcePasswordChangeContent } from "@/features/shared/auth/components/force-password-change-content"
 
 export const dynamic = "force-dynamic"
 

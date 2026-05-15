@@ -1,4 +1,4 @@
-import { StudentHistory } from "@/features/booking/components/student-history"
+import { StudentHistory } from "@/features/student/aulas/components/student-history"
 
 export default function HistoricoPage() {
   return <StudentHistory />

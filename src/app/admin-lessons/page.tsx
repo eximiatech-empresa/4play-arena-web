@@ -2,7 +2,7 @@
 
 import { Loader2 } from "lucide-react"
 import { useCurrentUser } from "@/hooks/use-current-user"
-import { AdminLessonsContent } from "@/features/admin-lessons/components/admin-lessons-content"
+import { AdminLessonsContent } from "@/features/admin/aulas/components/admin-lessons-content"
 
 export default function AdminLessonsPage() {
   const { isLoading } = useCurrentUser()

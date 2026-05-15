@@ -1,4 +1,4 @@
-import { DashboardPageContent } from "@/features/dashboard"
+import { DashboardPageContent } from "@/features/shared/dashboard"
 
 export default function DashboardPage() {
   return <DashboardPageContent />

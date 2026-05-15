@@ -6,10 +6,10 @@ import { formatLessonDateTime } from "@/lib/utils/date"
 import type { Lesson } from "@/core/entities/lesson"
 import { LevelBadge } from "@/components/shared/level-badge"
 import { Button } from "@/components/ui/button"
-import { useCheckIn } from "@/features/booking/hooks/use-lessons"
-import { useLessonCardState } from "@/features/booking/hooks/use-lesson-card-state"
-import { useLessonCancelFlow } from "@/features/booking/hooks/use-lesson-cancel-flow"
-import { CancelConfirmationModal } from "../../features/booking/components/cancel-confirmation-modal"
+import { useCheckIn } from "@/features/student/aulas/hooks/use-lessons"
+import { useLessonCardState } from "@/features/student/aulas/hooks/use-lesson-card-state"
+import { useLessonCancelFlow } from "@/features/student/aulas/hooks/use-lesson-cancel-flow"
+import { CancelConfirmationModal } from "@/features/student/aulas/components/cancel-confirmation-modal"
 
 interface LessonCardProps {
   lesson: Lesson

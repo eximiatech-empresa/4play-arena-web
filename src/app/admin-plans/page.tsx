@@ -2,7 +2,7 @@
 
 import { Loader2 } from "lucide-react"
 import { useCurrentUser } from "@/hooks/use-current-user"
-import { AdminPlansContent } from "@/features/admin-plans"
+import { AdminPlansContent } from "@/features/admin/planos"
 
 export default function AdminPlansPage() {
   const { isLoading } = useCurrentUser()

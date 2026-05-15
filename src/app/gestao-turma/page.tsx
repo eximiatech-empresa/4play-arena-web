@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { useCurrentUser } from "@/hooks/use-current-user"
-import { TeacherRosterContent } from "@/features/class-management/components/teacher-roster-content"
+import { TeacherRosterContent } from "@/features/teacher/turma/components/teacher-roster-content"
 
 export default function TeacherRosterPage() {
   const { data: user, isLoading } = useCurrentUser()

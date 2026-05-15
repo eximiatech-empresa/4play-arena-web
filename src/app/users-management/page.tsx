@@ -2,7 +2,7 @@
 "use client"
 import { Loader2 } from "lucide-react"
 import { useCurrentUser } from "@/hooks/use-current-user"
-import { UsersManagementContent } from "@/features/users-management/components/users-management-content"
+import { UsersManagementContent } from "@/features/admin/usuarios/components/users-management-content"
 
 export default function UsersManagementPage() {
   const { isLoading } = useCurrentUser()

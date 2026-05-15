@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import { useCurrentUser } from "@/hooks/use-current-user"
-import { ClassManagementContent } from "@/features/class-management/components/class-management-content"
+import { ClassManagementContent } from "@/features/teacher/gestao/components/class-management-content"
 
 export default function ClassManagementPage() {
   const { data: user, isLoading } = useCurrentUser()
