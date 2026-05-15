@@ -1,18 +1,16 @@
 import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc } from "firebase/firestore"
+import { PlayPackageSchema, type PlayPackage } from "@/core/entities/play-package"
 import { db } from "./firestore"
 
-export interface PlayPackage {
-  id: string
-  label: string
-  plays: number
-  priceInCents: number
-  popular?: boolean
-}
+export type { PlayPackage }
 
 export async function getPlayPackages(): Promise<PlayPackage[]> {
   const snap = await getDocs(collection(db, "play-packages"))
   return snap.docs
-    .map((d) => d.data() as PlayPackage)
+    .flatMap((d) => {
+      const result = PlayPackageSchema.safeParse({ id: d.id, ...d.data() })
+      return result.success ? [result.data] : []
+    })
     .sort((a, b) => a.plays - b.plays)
 }
 

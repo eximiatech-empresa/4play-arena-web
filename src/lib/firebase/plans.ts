@@ -1,11 +1,16 @@
 import { collection, doc, getDocs, setDoc, updateDoc, deleteDoc } from "firebase/firestore"
+import { PlanConfigSchema, type PlanConfig } from "@/core/entities/plan-config"
 import { db } from "./firestore"
-import type { PlanConfig } from "@/core/constants/plan-pricing"
+
+export type { PlanConfig }
 
 export async function getPlans(): Promise<PlanConfig[]> {
   const snap = await getDocs(collection(db, "plans"))
   return snap.docs
-    .map((d) => d.data() as PlanConfig)
+    .flatMap((d) => {
+      const result = PlanConfigSchema.safeParse({ id: d.id, ...d.data() })
+      return result.success ? [result.data] : []
+    })
     .sort((a, b) => a.validityDays - b.validityDays)
 }
 

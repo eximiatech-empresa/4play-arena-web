@@ -1,16 +1,8 @@
 import { doc, getDoc, setDoc } from "firebase/firestore"
+import { TeacherClassSchema, type TeacherClass } from "@/core/entities/teacher-class"
 import { db } from "./firestore"
-import { z } from "zod"
 
-const TeacherClassSchema = z.object({
-  teacherId: z.string(),
-  titularIds: z.array(z.string()).default([]),
-  reservaIds: z.array(z.string()).default([]),
-  classSize: z.number().int().positive().default(4),
-  updatedAt: z.string().optional(),
-})
-
-export type TeacherClass = z.infer<typeof TeacherClassSchema>
+export type { TeacherClass }
 
 export async function getTeacherClass(teacherId: string): Promise<TeacherClass> {
   const snap = await getDoc(doc(db, "teacherClasses", teacherId))

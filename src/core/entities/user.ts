@@ -57,6 +57,22 @@ export const UserSchema = z.discriminatedUnion("role", [
 ])
 export type User = z.infer<typeof UserSchema>
 
+export const UserSummarySchema = z.object({
+  uid: z.string().catch(""),
+  name: z.string().catch("Usuário sem nome"),
+  email: z.string().catch(""),
+  role: z.enum(["ADMIN", "TEACHER", "STUDENT"]).catch("STUDENT"),
+  isActive: z.boolean().catch(true),
+  level: z.string().catch("Iniciante").optional(),
+  walletBalance: z.preprocess((val) => Number(val) || 0, z.number().catch(0)).optional(),
+  lessonPrice: z.preprocess((val) => Number(val) || 0, z.number().catch(0)).optional(),
+  earningsBalance: z.preprocess((val) => Number(val) || 0, z.number().catch(0)).optional(),
+  createdAt: z.preprocess((val) => (val ? String(val) : ""), z.string().catch("")).optional(),
+  planExpiresAt: z.string().optional().catch(undefined),
+})
+export type UserSummary = z.infer<typeof UserSummarySchema>
+export type UserListItem = UserSummary
+
 export const CreateUserFormSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   email: z.string().email("E-mail inválido"),

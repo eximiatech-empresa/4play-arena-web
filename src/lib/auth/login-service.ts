@@ -2,9 +2,8 @@ import { doc, getDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase/firestore"
 import { authService } from "@/lib/auth"
 import type { LoginInput } from "@/core/entities/auth"
+import type { UserRole } from "@/core/entities/user"
 import { ERROS } from "@/core/errors/erros"
-
-type UserRole = "ADMIN" | "TEACHER" | "STUDENT"
 
 function resolveRedirectRoute(role: UserRole, mustChangePassword: boolean): string {
   if (mustChangePassword) return "/force-password-change"

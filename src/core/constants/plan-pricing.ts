@@ -1,21 +1,6 @@
-// src/core/constants/plan-pricing.ts
+import type { PlanConfig } from "@/core/entities/plan-config"
 
 export type PlanId = string
-
-export interface PlanConfig {
-  readonly id: PlanId
-  readonly label: string
-  /** Total plays granted on purchase. */
-  readonly totalPlays: number
-  /** Plan validity in days. */
-  readonly validityDays: number
-  /** Price in BRL (R$). */
-  readonly priceInCents: number
-  /** Monetary value of a single Play for this plan (R$). */
-  readonly playValue: number
-  /** Whether this plan is highlighted as "popular" in the UI. */
-  readonly popular?: boolean
-}
 
 export const PLAN_CONFIGS: Readonly<Record<PlanId, PlanConfig>> = {
   mensal: {
@@ -23,7 +8,7 @@ export const PLAN_CONFIGS: Readonly<Record<PlanId, PlanConfig>> = {
     label: "Mensal",
     totalPlays: 80,
     validityDays: 30,
-    priceInCents: 41000, // R$ 410,00
+    priceInCents: 41000,
     playValue: 5.125,
   },
   trimestral: {
@@ -31,7 +16,7 @@ export const PLAN_CONFIGS: Readonly<Record<PlanId, PlanConfig>> = {
     label: "Trimestral",
     totalPlays: 240,
     validityDays: 90,
-    priceInCents: 114000, // R$ 1.140,00
+    priceInCents: 114000,
     playValue: 4.75,
   },
   semestral: {
@@ -39,7 +24,9 @@ export const PLAN_CONFIGS: Readonly<Record<PlanId, PlanConfig>> = {
     label: "Semestral",
     totalPlays: 480,
     validityDays: 180,
-    priceInCents: 207000, // R$ 2.070,00
+    priceInCents: 207000,
     playValue: 4.3125,
   },
 } as const
+
+export type { PlanConfig }

@@ -10,26 +10,13 @@ import {
   getDocs,
   writeBatch,
 } from "firebase/firestore"
-import { z } from "zod"
 import { firebaseApp } from "./app"
-import type { User, StudentUser, TeacherUser, UserRole } from "@/core/entities/user"
-import { UserSchema } from "@/core/entities/user"
+import type { User, StudentUser, TeacherUser, UserRole, UserListItem } from "@/core/entities/user"
+import { UserSchema, UserSummarySchema } from "@/core/entities/user"
 
-// Lenient schema for list view — .catch() ensures old/incomplete docs are never dropped
-const UserListItemSchema = z.object({
-  uid: z.string().catch(""),
-  name: z.string().catch("Usuário sem nome"),
-  email: z.string().catch(""),
-  role: z.enum(["ADMIN", "TEACHER", "STUDENT"]).catch("STUDENT"),
-  isActive: z.boolean().catch(true),
-  level: z.string().catch("Iniciante").optional(),
-  walletBalance: z.preprocess((val) => Number(val) || 0, z.number().catch(0)).optional(),
-  lessonPrice: z.preprocess((val) => Number(val) || 0, z.number().catch(0)).optional(),
-  earningsBalance: z.preprocess((val) => Number(val) || 0, z.number().catch(0)).optional(),
-  createdAt: z.preprocess((val) => (val ? String(val) : ""), z.string().catch("")).optional(),
-  planExpiresAt: z.string().optional().catch(undefined),
-})
-export type UserListItem = z.infer<typeof UserListItemSchema>
+export type { UserListItem }
+
+const UserListItemSchema = UserSummarySchema
 
 export interface CreateUserInput {
   name: string

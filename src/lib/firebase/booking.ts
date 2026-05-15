@@ -27,6 +27,7 @@ import {
 import { ERROS } from "@/core/errors/erros"
 import { PLAN_CONFIGS } from "@/core/constants/plan-pricing"
 import { calculateCheckinRevenue } from "@/core/math/financial-engine"
+import { resolvePlayValue } from "@/core/math/resolve-play-value"
 import type { Lesson } from "@/core/entities/lesson"
 import type { LessonHistoryEntry, TeacherLessonHistoryEntry } from "@/core/entities/lesson"
 import type { Transaction, Plan } from "@/core/entities/wallet"
@@ -77,21 +78,11 @@ export async function getLessonsByDate(dateStr: string, studentId: string, plan:
     ),
   );
 
-  console.log(`📊 Encontrados ${snap.docs.length} documentos no Firestore`);
-
   return snap.docs.flatMap((d) => {
     const data = d.data();
-
     if (data.status === "finished") return [];
-
     const lesson = mapRawDocToLesson(d.id, d.data() as Record<string, unknown>, studentId, plan, now);
-
-    if (!lesson) {
-      console.error(`❌ Falha ao validar schema da aula ${d.id}.`);
-      return [];
-    }
-
-    return [lesson];
+    return lesson ? [lesson] : [];
   });
 }
 
@@ -149,27 +140,7 @@ export async function processCheckIn(
     const currentEarnings: number = professorData?.earningsBalance || 0
     const now = new Date().toISOString()
 
-    // Use planPlayValue frozen at purchase time; fall back to PLAN_CONFIGS for older docs
-    const currentPlanId = (userData.currentPlanId ?? "mensal") as Plan
-    let playValue: number = Number(
-      userData.wallet?.playValue ??
-      userData.planPlayValue ??
-      PLAN_CONFIGS[currentPlanId]?.playValue ??
-      PLAN_CONFIGS.mensal.playValue
-    )
-
-    // Fallback agressivo se o valor veio como NaN do banco histórico
-    if (Number.isNaN(playValue) || playValue <= 0) {
-      playValue = Number(PLAN_CONFIGS[currentPlanId]?.playValue ?? PLAN_CONFIGS.mensal.playValue)
-    }
-    
-    console.log("[DEBUG CHECK-IN] Dados para validação", {
-      studentId,
-      currentPlanId,
-      originalPlayValue: userData.wallet?.playValue ?? userData.planPlayValue,
-      resolvedPlayValue: playValue,
-      isNanPlayValue: Number.isNaN(playValue)
-    })
+    const playValue = resolvePlayValue(userData, PLAN_CONFIGS)
 
     if (Number.isNaN(playValue) || playValue <= 0) {
       throw new Error("CRÍTICO: Aluno não possui playValue válido para realizar check-in.")

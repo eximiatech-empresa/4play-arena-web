@@ -1,24 +1,26 @@
 "use client"
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import {
-  getPlans,
   createPlan,
-  updatePlan,
   deletePlan,
+  getPlans,
+  updatePlan,
 } from "@/lib/firebase/plans"
 import {
-  getPlayPackages,
   createPlayPackage,
-  updatePlayPackage,
   deletePlayPackage,
   type PlayPackage,
+  updatePlayPackage,
 } from "@/lib/firebase/play-packages"
-import type { PlanConfig } from "@/core/constants/plan-pricing"
+import type { PlanConfig } from "@/core/entities/plan-config"
+import { PLAY_PACKAGES_QUERY_KEY } from "@/features/shared/planos-data/hooks/use-play-packages"
+
+export { usePlayPackages } from "@/features/shared/planos-data/hooks/use-play-packages"
 
 export const ADMIN_PLANS_KEY = ["admin-plans"] as const
-export const PLAY_PACKAGES_KEY = ["play-packages"] as const
+export const PLAY_PACKAGES_KEY = PLAY_PACKAGES_QUERY_KEY
 
 export function usePlansAdmin() {
   return useQuery({
@@ -71,14 +73,6 @@ export function useDeletePlan() {
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "Erro ao excluir plano")
     },
-  })
-}
-
-export function usePlayPackages() {
-  return useQuery({
-    queryKey: PLAY_PACKAGES_KEY,
-    queryFn: getPlayPackages,
-    staleTime: 2 * 60 * 1000,
   })
 }
 
