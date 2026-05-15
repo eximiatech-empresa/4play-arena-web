@@ -1,8 +1,15 @@
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useLessons } from "@/features/booking/hooks/use-lessons"
+import { useAdminLessonsByDate } from "@/features/admin-lessons/hooks/use-admin-lessons"
+import { usePlans } from "@/features/wallet/hooks/use-plans"
+import { usePlayPackages } from "@/features/wallet/hooks/use-play-packages"
+import { getAdminTransactionsByMonth } from "@/lib/firebase/admin-transactions"
+import { getStudentsForAlerts } from "@/lib/firebase/firestore"
+import { getRecentAuditLogs } from "@/lib/firebase/audit-logs"
 import { runOperationalRadar } from "@/core/math/operational-radar"
 import type { OperationalAlert } from "@/core/math/operational-radar"
+import type { LessonDocument } from "@/core/entities/lesson"
 
 // ─── Re-export so the view layer imports from one place ──────────────────────
 export type { OperationalAlert, OperationalAlertType } from "@/core/math/operational-radar"
@@ -38,15 +45,13 @@ export interface AdminAlert {
   href: string
 }
 
-// A single "level changed" audit entry.
-// TODO: replace mock with real-time Firestore query on `audit_logs` collection.
 export type AuditLogType = "level_change"
 
 export interface AuditLog {
   id: string
   type: AuditLogType
-  actorName: string      // professor who made the change
-  targetName: string     // student whose level changed
+  actorName: string
+  targetName: string
   previousValue: string
   newValue: string
   createdAt: string      // ISO 8601
@@ -61,73 +66,7 @@ export interface AdminDashboardData {
   auditLogs: AuditLog[]
 }
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-// TODO: replace with real Firebase/Firestore aggregation queries
-
-const MOCK_METRICS: AdminMetrics = {
-  packagesSoldThisMonth: 14,
-  occupancyRateToday: 72,
-  cancellationsToday: 2,
-  estimatedRevenue: 8430,
-}
-
-const MOCK_TODAYS_LESSONS: TodaysLesson[] = [
-  { id: "tl1", professorName: "Biel",    court: "Quadra 3", time: "09:00", level: "Iniciante", enrolledCount: 0, totalSpots: 6, status: "cancelled"   },
-  { id: "tl2", professorName: "Paulinho",court: "Quadra 2", time: "10:00", level: "Nível C",   enrolledCount: 3, totalSpots: 4, status: "completed"   },
-  { id: "tl3", professorName: "Marília", court: "Quadra 1", time: "14:00", level: "Nível C",   enrolledCount: 0, totalSpots: 4, status: "cancelled"   },
-  { id: "tl4", professorName: "Marília", court: "Quadra 1", time: "17:00", level: "Nível A",   enrolledCount: 4, totalSpots: 4, status: "in_progress" },
-  { id: "tl5", professorName: "Pepe",    court: "Quadra 2", time: "19:00", level: "Nível B",   enrolledCount: 3, totalSpots: 4, status: "confirmed"   },
-  { id: "tl6", professorName: "Paulinho",court: "Quadra 2", time: "20:00", level: "Nível B",   enrolledCount: 3, totalSpots: 4, status: "confirmed"   },
-]
-
-const MOCK_ALERTS: AdminAlert[] = [
-  { id: "a1", type: "cancellation",  message: "Aula cancelada de última hora", detail: "Biel · Quadra 3 · 09:00 (Iniciante)",  href: "/class-management"  },
-  { id: "a2", type: "cancellation",  message: "Aula cancelada de última hora", detail: "Marília · Quadra 1 · 14:00 (Nível C)", href: "/class-management"  },
-  { id: "a3", type: "plan_expiring", message: "Plano vence em 1 dia",          detail: "Carlos Silva",                          href: "/users-management"  },
-  { id: "a4", type: "plan_expiring", message: "Plano vence em 2 dias",         detail: "Ana Costa",                             href: "/users-management"  },
-  { id: "a5", type: "plan_expiring", message: "Plano vence em 3 dias",         detail: "Pedro Santos",                          href: "/users-management"  },
-]
-
-// Timestamps are relative to "now" at session time so the UI always looks live.
-const now = Date.now()
-const MOCK_AUDIT_LOGS: AuditLog[] = [
-  {
-    id: "al1",
-    type: "level_change",
-    actorName: "Paulinho",
-    targetName: "Carlos Silva",
-    previousValue: "Nível C",
-    newValue: "Nível B",
-    createdAt: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "al2",
-    type: "level_change",
-    actorName: "Marília",
-    targetName: "Ana Costa",
-    previousValue: "Iniciante",
-    newValue: "Nível C",
-    createdAt: new Date(now - 5 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "al3",
-    type: "level_change",
-    actorName: "Biel",
-    targetName: "Pedro Santos",
-    previousValue: "Nível D",
-    newValue: "Nível C",
-    createdAt: new Date(now - 22 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: "al4",
-    type: "level_change",
-    actorName: "Pepe",
-    targetName: "Fernanda Rocha",
-    previousValue: "Nível C",
-    newValue: "Nível B",
-    createdAt: new Date(now - 47 * 60 * 60 * 1000).toISOString(),
-  },
-]
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const EMPTY_METRICS: AdminMetrics = {
   packagesSoldThisMonth: 0,
@@ -136,41 +75,187 @@ const EMPTY_METRICS: AdminMetrics = {
   estimatedRevenue: 0,
 }
 
-// ─── Fetch (simulated — replace with real Firestore aggregation) ──────────────
+const PLAN_EXPIRY_ALERT_DAYS = 7
 
-async function fetchAdminBase() {
-  await new Promise<void>((r) => setTimeout(r, 400))
-  return {
-    metrics: MOCK_METRICS,
-    todaysLessons: MOCK_TODAYS_LESSONS,
-    alerts: MOCK_ALERTS,
-  }
+// ─── Status mapping ────────────────────────────────────────────────────────────
+
+function mapDocStatus(doc: LessonDocument): LessonStatus {
+  if (doc.status === "cancelled") return "cancelled"
+  if (doc.status === "finished") return "completed"
+  // "scheduled": só deriva "in_progress" pelo horário — nunca auto-conclui.
+  // "Concluída" só aparece quando o professor marcar explicitamente como "finished".
+  const lessonMs = new Date(doc.dateTime).getTime()
+  const nowMs = Date.now()
+  if (nowMs >= lessonMs && nowMs < lessonMs + 60 * 60 * 1000) return "in_progress"
+  return "confirmed"
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAdminDashboard(): AdminDashboardData {
-  const { data, isLoading: isBaseLoading } = useQuery({
-    queryKey: ["admin-dashboard"],
-    queryFn: fetchAdminBase,
+  const today = new Date()
+  const todayStr = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .format(today)
+    .split("/")
+    .reverse()
+    .join("-") // "2026-05-14"
+
+  const year = today.getFullYear()
+  const month = today.getMonth() // 0-indexed
+
+  // ── Core data (blocks loading state) ──────────────────────────────────────
+  const { data: todayDocs = [], isLoading: isTodayLoading } =
+    useAdminLessonsByDate(todayStr)
+
+  const { data: monthTxs = [], isLoading: isTxLoading } = useQuery({
+    queryKey: ["admin-transactions", year, month],
+    queryFn: () => getAdminTransactionsByMonth(year, month),
     staleTime: 2 * 60 * 1000,
   })
 
-  const { data: lessons = [], isLoading: isLessonsLoading } = useLessons()
+  const { data: plans = [] } = usePlans()
+  const { data: packages = [] } = usePlayPackages()
 
-  const isLoading = isBaseLoading || isLessonsLoading
+  const { data: lessons = [], isLoading: isRadarLoading } = useLessons()
 
+  // ── Secondary data (non-blocking) ─────────────────────────────────────────
+  const { data: students = [] } = useQuery({
+    queryKey: ["students-for-alerts"],
+    queryFn: getStudentsForAlerts,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: auditLogDocs = [] } = useQuery({
+    queryKey: ["audit-logs"],
+    queryFn: () => getRecentAuditLogs(8),
+    staleTime: 2 * 60 * 1000,
+  })
+
+  const isLoading = isTodayLoading || isTxLoading || isRadarLoading
+
+  // ── Derived: metrics ───────────────────────────────────────────────────────
+  const metrics = useMemo((): AdminMetrics => {
+    const packagesSoldThisMonth = monthTxs.filter(
+      (t) => t.type === "purchase" || t.type === "package",
+    ).length
+
+    const activeLessons = todayDocs.filter((l) => l.status !== "cancelled")
+    const totalSpots = activeLessons.reduce((s, l) => s + l.totalSpots, 0)
+    const totalEnrolled = activeLessons.reduce(
+      (s, l) => s + l.enrolledStudentIds.length,
+      0,
+    )
+    const occupancyRateToday =
+      totalSpots > 0 ? Math.round((totalEnrolled / totalSpots) * 100) : 0
+
+    const cancellationsToday = todayDocs.filter(
+      (l) => l.status === "cancelled",
+    ).length
+
+    const planMap = new Map(plans.map((p) => [p.totalPlays, p.priceInCents]))
+    const pkgMap = new Map(packages.map((p) => [p.plays, p.priceInCents]))
+
+    const estimatedRevenueCents = monthTxs.reduce((total, tx) => {
+      if (tx.type === "purchase") return total + (planMap.get(tx.amount) ?? 0)
+      if (tx.type === "package") return total + (pkgMap.get(tx.amount) ?? 0)
+      return total
+    }, 0)
+
+    return {
+      packagesSoldThisMonth,
+      occupancyRateToday,
+      cancellationsToday,
+      estimatedRevenue: estimatedRevenueCents / 100,
+    }
+  }, [monthTxs, todayDocs, plans, packages])
+
+  // ── Derived: today's agenda ────────────────────────────────────────────────
+  const todaysLessons = useMemo((): TodaysLesson[] => {
+    return todayDocs
+      .map(
+        (doc): TodaysLesson => ({
+          id: doc.id,
+          professorName: doc.professorName,
+          court: doc.court,
+          level: doc.level,
+          time: new Date(doc.dateTime).toLocaleTimeString("pt-BR", {
+            hour: "2-digit",
+            minute: "2-digit",
+            timeZone: "America/Sao_Paulo",
+          }),
+          enrolledCount: doc.enrolledStudentIds.length,
+          totalSpots: doc.totalSpots,
+          status: mapDocStatus(doc),
+        }),
+      )
+      .sort((a, b) => a.time.localeCompare(b.time))
+  }, [todayDocs])
+
+  // ── Derived: retention alerts (expiring plans) ─────────────────────────────
+  const alerts = useMemo((): AdminAlert[] => {
+    const nowMs = Date.now()
+    const thresholdMs = PLAN_EXPIRY_ALERT_DAYS * 24 * 60 * 60 * 1000
+
+    return students
+      .filter((s) => {
+        if (!s.planExpiresAt) return false
+        const diffMs = new Date(s.planExpiresAt).getTime() - nowMs
+        return diffMs > 0 && diffMs <= thresholdMs
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.planExpiresAt!).getTime() -
+          new Date(b.planExpiresAt!).getTime(),
+      )
+      .map((s): AdminAlert => {
+        const daysLeft = Math.ceil(
+          (new Date(s.planExpiresAt!).getTime() - nowMs) / (24 * 60 * 60 * 1000),
+        )
+        return {
+          id: `expiring-${s.uid}`,
+          type: "plan_expiring",
+          message:
+            daysLeft === 1
+              ? "Plano vence em 1 dia"
+              : `Plano vence em ${daysLeft} dias`,
+          detail: s.name,
+          href: "/users-management",
+        }
+      })
+  }, [students])
+
+  // ── Derived: operational radar ─────────────────────────────────────────────
   const operationalAlerts = useMemo(
     () => runOperationalRadar(lessons),
-    [lessons]
+    [lessons],
+  )
+
+  // ── Derived: audit log ─────────────────────────────────────────────────────
+  const auditLogs = useMemo(
+    (): AuditLog[] =>
+      auditLogDocs.map((d) => ({
+        id: d.id,
+        type: d.type,
+        actorName: d.actorName,
+        targetName: d.targetName,
+        previousValue: d.previousValue,
+        newValue: d.newValue,
+        createdAt: d.createdAt,
+      })),
+    [auditLogDocs],
   )
 
   return {
     isLoading,
-    metrics: data?.metrics ?? EMPTY_METRICS,
-    todaysLessons: data?.todaysLessons ?? [],
-    alerts: data?.alerts ?? [],
+    metrics: isLoading ? EMPTY_METRICS : metrics,
+    todaysLessons,
+    alerts,
     operationalAlerts,
-    auditLogs: MOCK_AUDIT_LOGS,
+    auditLogs,
   }
 }

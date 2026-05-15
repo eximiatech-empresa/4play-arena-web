@@ -8,6 +8,7 @@ import {
   query,
   where,
   getDocs,
+  writeBatch,
 } from "firebase/firestore"
 import { z } from "zod"
 import { firebaseApp } from "./app"
@@ -26,6 +27,7 @@ const UserListItemSchema = z.object({
   lessonPrice: z.preprocess((val) => Number(val) || 0, z.number().catch(0)).optional(),
   earningsBalance: z.preprocess((val) => Number(val) || 0, z.number().catch(0)).optional(),
   createdAt: z.preprocess((val) => (val ? String(val) : ""), z.string().catch("")).optional(),
+  planExpiresAt: z.string().optional().catch(undefined),
 })
 export type UserListItem = z.infer<typeof UserListItemSchema>
 
@@ -117,4 +119,42 @@ export async function updateUserRole(uid: string, role: string): Promise<void> {
 
 export async function updateTeacherLessonPrice(uid: string, lessonPrice: number): Promise<void> {
   await updateDoc(doc(db, "users", uid), { lessonPrice })
+}
+
+export async function updateStudentLevel(
+  studentId: string,
+  previousLevel: string,
+  newLevel: string,
+  actorId: string,
+  actorName: string,
+  studentName: string,
+): Promise<void> {
+  const batch = writeBatch(db)
+  batch.update(doc(db, "users", studentId), { level: newLevel })
+  const logRef = doc(collection(db, "audit_logs"))
+  batch.set(logRef, {
+    id: logRef.id,
+    type: "level_change",
+    actorId,
+    actorName,
+    targetId: studentId,
+    targetName: studentName,
+    previousValue: previousLevel,
+    newValue: newLevel,
+    createdAt: new Date().toISOString(),
+  })
+  await batch.commit()
+}
+
+export async function getStudentsForAlerts(): Promise<UserListItem[]> {
+  const snap = await getDocs(
+    query(collection(db, "users"), where("role", "==", "STUDENT")),
+  )
+  return snap.docs.flatMap((d) => {
+    const raw = { uid: d.id, ...d.data() } as Record<string, unknown>
+    const result = UserListItemSchema.safeParse(raw)
+    if (!result.success) return []
+    if (!result.data.uid) result.data.uid = d.id
+    return [result.data]
+  })
 }

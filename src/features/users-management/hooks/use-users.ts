@@ -1,6 +1,6 @@
 "use client"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { getAllUsers, updateUserActiveStatus, updateTeacherLessonPrice, updateUserRole } from "@/lib/firebase/firestore"
+import { getAllUsers, updateUserActiveStatus, updateTeacherLessonPrice, updateUserRole, updateStudentLevel } from "@/lib/firebase/firestore"
 import { createStaffUser, type CreateStaffUserInput } from "@/app/actions/create-staff-user"
 
 const QUERY_KEY = ["users"] as const
@@ -53,6 +53,31 @@ export function useUpdateLessonPrice() {
       updateTeacherLessonPrice(uid, lessonPrice),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY })
+    },
+  })
+}
+
+export function useUpdateStudentLevel() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      studentId,
+      previousLevel,
+      newLevel,
+      actorId,
+      actorName,
+      studentName,
+    }: {
+      studentId: string
+      previousLevel: string
+      newLevel: string
+      actorId: string
+      actorName: string
+      studentName: string
+    }) => updateStudentLevel(studentId, previousLevel, newLevel, actorId, actorName, studentName),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] })
     },
   })
 }

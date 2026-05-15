@@ -28,8 +28,11 @@ import {
   useSetUserStatus,
   useUpdateLessonPrice,
   useUpdateUserRole,
+  useUpdateStudentLevel,
   type UserListItem,
 } from "../hooks/use-users";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { STUDENT_LEVELS } from "@/core/constants/professors";
 import { formatCurrency } from "@/utils/formatters";
 import {
   Select,
@@ -56,16 +59,22 @@ export function UserDetailsModal({
   open,
   onOpenChange,
 }: UserDetailsModalProps) {
+  const { data: currentUser } = useCurrentUser();
   const { mutate: setStatus, isPending } = useSetUserStatus();
   const { mutate: updatePrice, isPending: isSavingPrice } =
     useUpdateLessonPrice();
   const { mutate: updateRole, isPending: isSavingRole } = useUpdateUserRole();
+  const { mutate: updateLevel, isPending: isSavingLevel } =
+    useUpdateStudentLevel();
 
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState("");
 
   const [editingRole, setEditingRole] = useState(false);
   const [roleInput, setRoleInput] = useState("");
+
+  const [editingLevel, setEditingLevel] = useState(false);
+  const [levelInput, setLevelInput] = useState("");
 
   if (!user) return null;
 
@@ -134,6 +143,37 @@ export function UserDetailsModal({
   function handleCancelEdit() {
     setEditingPrice(false);
     setPriceInput("");
+  }
+
+  function handleStartEditLevel() {
+    setLevelInput(user!.level ?? "Iniciante");
+    setEditingLevel(true);
+  }
+
+  function handleSaveLevel() {
+    if (!currentUser) return;
+    const previous = user!.level ?? "Iniciante";
+    if (levelInput === previous) {
+      setEditingLevel(false);
+      return;
+    }
+    updateLevel(
+      {
+        studentId: user!.uid,
+        previousLevel: previous,
+        newLevel: levelInput,
+        actorId: currentUser.uid,
+        actorName: currentUser.name,
+        studentName: user!.name,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Nível do aluno atualizado.");
+          setEditingLevel(false);
+        },
+        onError: () => toast.error("Erro ao atualizar o nível."),
+      },
+    );
   }
 
   return (
@@ -230,19 +270,66 @@ export function UserDetailsModal({
             </div>
             {user.role !== "ADMIN" && user.role !== "TEACHER" && (
               <div className="p-3 rounded-lg bg-zinc-50 border border-zinc-100">
-                <div className="flex items-baseline gap-2">
-                  <Info className="w-3.5 h-3.5" />
-                  <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold">
-                    Nível
-                  </p>
-                </div>
-                <div className="mt-1">
-                  {user.level ? (
-                    <LevelBadge level={user.level} size="sm" />
-                  ) : (
-                    <span className="text-xs text-zinc-400">—</span>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-baseline gap-2">
+                    <Info className="w-3.5 h-3.5" />
+                    <p className="text-[10px] uppercase tracking-wider text-zinc-500 font-bold">
+                      Nível
+                    </p>
+                  </div>
+                  {!editingLevel && (
+                    <button
+                      type="button"
+                      onClick={handleStartEditLevel}
+                      className="flex items-center gap-1 text-xs text-brand hover:text-brand-dark transition-colors"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      Editar
+                    </button>
                   )}
                 </div>
+
+                {editingLevel ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Select value={levelInput} onValueChange={setLevelInput}>
+                      <SelectTrigger className="h-7 flex-1 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STUDENT_LEVELS.map((lvl) => (
+                          <SelectItem key={lvl} value={lvl}>
+                            {lvl}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="icon"
+                      className="h-7 w-7 bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
+                      disabled={isSavingLevel}
+                      onClick={handleSaveLevel}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-7 w-7 shrink-0"
+                      disabled={isSavingLevel}
+                      onClick={() => setEditingLevel(false)}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="mt-1">
+                    {user.level ? (
+                      <LevelBadge level={user.level} size="sm" />
+                    ) : (
+                      <span className="text-xs text-zinc-400">—</span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

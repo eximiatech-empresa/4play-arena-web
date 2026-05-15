@@ -18,14 +18,17 @@ import { buildDateList } from "@/core/usecases/lessons/create-lesson"
 export type { CreateLessonInput }
 
 export async function getAdminLessonsByDate(dateStr: string): Promise<LessonDocument[]> {
-  const startPrefix = `${dateStr}T`
-  const endPrefix = `${dateStr}U`
+  // dateStr = "YYYY-MM-DD" no fuso de Brasília (UTC-3, sem horário de verão desde 2019).
+  // Aulas são salvas como ISO UTC com Z, então convertemos os limites do dia BRT → UTC
+  // para evitar que aulas de ontem à noite (9pm-midnight BRT) apareçam no dia errado.
+  const startUTC = new Date(`${dateStr}T00:00:00.000-03:00`).toISOString()
+  const endUTC   = new Date(`${dateStr}T23:59:59.999-03:00`).toISOString()
 
   const snap = await getDocs(
     query(
       collection(db, "lessons"),
-      where("dateTime", ">=", startPrefix),
-      where("dateTime", "<", endPrefix),
+      where("dateTime", ">=", startUTC),
+      where("dateTime", "<=", endUTC),
       orderBy("dateTime"),
     ),
   )
@@ -40,18 +43,21 @@ export async function getAdminLessonsByMonth(
   year: number,
   month: number, // 0-indexed (JS Date convention)
 ): Promise<LessonDocument[]> {
-  const mm = String(month + 1).padStart(2, "0")
-  const nextMM = month === 11 ? "01" : String(month + 2).padStart(2, "0")
+  const mm     = String(month + 1).padStart(2, "0")
+  const nextMon = month === 11 ? 1 : month + 2
   const nextYear = month === 11 ? year + 1 : year
+  const nextMM  = String(nextMon).padStart(2, "0")
 
-  const startPrefix = `${year}-${mm}-01T`
-  const endPrefix = `${nextYear}-${nextMM}-01T`
+  // Mesma lógica: converter limites do mês BRT → UTC para não perder as últimas
+  // horas do mês (9pm-midnight BRT do último dia estariam no primeiro dia UTC seguinte).
+  const startUTC = new Date(`${year}-${mm}-01T00:00:00.000-03:00`).toISOString()
+  const endUTC   = new Date(`${nextYear}-${nextMM}-01T00:00:00.000-03:00`).toISOString()
 
   const snap = await getDocs(
     query(
       collection(db, "lessons"),
-      where("dateTime", ">=", startPrefix),
-      where("dateTime", "<", endPrefix),
+      where("dateTime", ">=", startUTC),
+      where("dateTime", "<",  endUTC),
       orderBy("dateTime"),
     ),
   )

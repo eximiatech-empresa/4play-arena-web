@@ -50,7 +50,7 @@ import Link from "next/link"
 // ─── Presentation maps (admin) ────────────────────────────────────────────────
 
 const LESSON_STATUS_LABELS: Record<LessonStatus, string> = {
-  confirmed:   "Confirmada",
+  confirmed:   "Agendada",
   in_progress: "Em Andamento",
   completed:   "Concluída",
   cancelled:   "Cancelada",
@@ -198,7 +198,7 @@ function AdminDashboardView({
               <h2 className="text-sm font-semibold text-foreground">Agenda do Dia</h2>
             </div>
             <Link
-              href="/aulas"
+              href="/admin-lessons"
               className="text-xs font-medium text-brand hover:text-brand-dark transition-colors"
             >
               Ver todas
