@@ -9,6 +9,7 @@ import {
   ReceiptText,
   CalendarDays,
   PackageOpen,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react"
 
@@ -74,6 +75,12 @@ export const MENU_CONFIG: NavItemConfig[] = [
     label: "Gestão",
     href: "/class-management",
     icon: ClipboardList,
+    roles: ["TEACHER"],
+  },
+  {
+    label: "Minha Turma",
+    href: "/gestao-turma",
+    icon: UsersRound,
     roles: ["TEACHER"],
   },
   {
