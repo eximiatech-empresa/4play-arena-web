@@ -10,6 +10,7 @@ import {
   CalendarDays,
   PackageOpen,
   UsersRound,
+  GraduationCap,
   type LucideIcon,
 } from "lucide-react"
 
@@ -82,6 +83,12 @@ export const MENU_CONFIG: NavItemConfig[] = [
     href: "/gestao-turma",
     icon: UsersRound,
     roles: ["TEACHER"],
+  },
+  {
+    label: "Níveis",
+    href: "/niveis-alunos",
+    icon: GraduationCap,
+    roles: ["TEACHER", "ADMIN"],
   },
   {
     label: "Grade de Aulas",
