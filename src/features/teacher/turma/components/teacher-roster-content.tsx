@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Users, UserPlus, X, Search, Loader2, UsersRound, Trophy, Shield } from "lucide-react"
+import { Users, UserPlus, X, Search, Loader2, UsersRound, Trophy, Shield, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils"
 import { useCurrentUser } from "@/hooks/use-current-user"
 import { useTeachers } from "@/features/shared/auth/hooks/use-teachers"
 import { useUsers } from "@/features/admin/usuarios/hooks/use-users"
-import { useTeacherClass, useUpdateTeacherClass } from "../hooks/use-teacher-class"
+import { useTeacherClass, useUpdateTeacherClass, useSyncTeacherClass } from "../hooks/use-teacher-class"
 import type { UserListItem } from "@/lib/firebase/firestore"
 
 // ─── Student card in roster ───────────────────────────────────────────────────
@@ -197,6 +197,7 @@ export function TeacherRosterContent() {
 
   const { data: teacherClass, isLoading: isLoadingClass } = useTeacherClass(teacherId)
   const { mutate: updateClass, isPending } = useUpdateTeacherClass(teacherId)
+  const { mutate: syncClass, isPending: isSyncing } = useSyncTeacherClass(teacherId)
 
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerType, setPickerType] = useState<RosterType>("titular")
@@ -310,16 +311,29 @@ export function TeacherRosterContent() {
             Gerencie os titulares e o banco de reservas da turma.
           </p>
         </div>
-        {isAdmin && (
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setSelectedTeacherId(undefined)}
-            className="text-xs"
+            onClick={() => syncClass()}
+            disabled={isSyncing || isPending || isLoading || !teacherId}
+            className="text-xs gap-1.5"
+            title="Atualiza titularIds e reservaIds em todas as aulas futuras deste professor"
           >
-            Trocar professor
+            <RefreshCw className={cn("w-3.5 h-3.5", isSyncing && "animate-spin")} />
+            Sincronizar aulas
           </Button>
-        )}
+          {isAdmin && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedTeacherId(undefined)}
+              className="text-xs"
+            >
+              Trocar professor
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Class size */}

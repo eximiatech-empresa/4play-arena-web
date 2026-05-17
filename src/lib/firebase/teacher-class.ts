@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc } from "firebase/firestore"
+import { collection, doc, getDoc, getDocs, query, setDoc, where, writeBatch } from "firebase/firestore"
 import { TeacherClassSchema, type TeacherClass } from "@/core/entities/teacher-class"
 import { db } from "./firestore"
 
@@ -22,4 +22,38 @@ export async function upsertTeacherClass(
     { teacherId, ...updates, updatedAt: new Date().toISOString() },
     { merge: true },
   )
+}
+
+export async function syncTeacherClassToLessons(
+  teacherId: string,
+  titularIds: string[],
+  reservaIds: string[],
+): Promise<number> {
+  const now = new Date().toISOString()
+  const snap = await getDocs(
+    query(
+      collection(db, "lessons"),
+      where("professorId", "==", teacherId),
+      where("status", "==", "scheduled"),
+    ),
+  )
+
+  const futureDocs = snap.docs.filter(
+    (d) => typeof d.data().dateTime === "string" && d.data().dateTime > now,
+  )
+
+  if (futureDocs.length === 0) return 0
+
+  const BATCH_LIMIT = 500
+  let updated = 0
+
+  for (let i = 0; i < futureDocs.length; i += BATCH_LIMIT) {
+    const chunk = futureDocs.slice(i, i + BATCH_LIMIT)
+    const batch = writeBatch(db)
+    chunk.forEach((d) => batch.update(d.ref, { titularIds, reservaIds }))
+    await batch.commit()
+    updated += chunk.length
+  }
+
+  return updated
 }

@@ -54,6 +54,7 @@ export function mapRawDocToLesson(
   // Determina se a aula é num horário de pico
   const isPeak = isPeakHour(lessonDate)
   const isReserva = !doc.titularIds.includes(studentId)
+  const isBanco = doc.reservaIds.includes(studentId)
 
   let previewConsumption = 0
   if (resolvedPlan !== undefined) {
@@ -95,6 +96,7 @@ export function mapRawDocToLesson(
     previewConsumption,
     isPeak,
     isReserva,
+    isBanco,
     /** @deprecated backward-compat alias for isPeak — use isPeak in new code */
     isOffPeak: !isPeak,
     status: doc.status,

@@ -75,6 +75,8 @@ export const LessonSchema = z.object({
   isPeak: z.boolean(),
   /** True when the student is NOT a titular of this class (avulso/reserva — pays +10%). */
   isReserva: z.boolean(),
+  /** True when the student is in the reservaIds (banco) of this lesson (subset of isReserva). */
+  isBanco: z.boolean(),
   /**
    * @deprecated Renamed to isPeak. Retained for backward-compat with components
    * that have not been migrated yet.

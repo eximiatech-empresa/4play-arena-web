@@ -14,6 +14,7 @@ import { db } from "./firestore" // Ajuste o caminho se necessário (ex: "@/lib/
 import { LessonDocumentSchema } from "@/core/entities/lesson"
 import type { LessonDocument, CreateLessonInput } from "@/core/entities/lesson"
 import { buildDateList } from "@/core/usecases/lessons/create-lesson"
+import { getTeacherClass } from "./teacher-class"
 
 export type { CreateLessonInput }
 
@@ -70,6 +71,7 @@ export async function getAdminLessonsByMonth(
 
 export async function createBulkLessons(input: CreateLessonInput): Promise<number> {
   const dates = buildDateList(input)
+  const teacherClass = await getTeacherClass(input.professorId)
   const batch = writeBatch(db)
 
   for (const dateTime of dates) {
@@ -87,20 +89,20 @@ export async function createBulkLessons(input: CreateLessonInput): Promise<numbe
       enrolledStudentIds: [],
       checkedInStudentIds: [],
       absentStudentIds: [],
-      titularIds: [],
-      reservaIds: [],
+      titularIds: teacherClass.titularIds,
+      reservaIds: teacherClass.reservaIds,
       status: "scheduled",
       wasRescheduled: false,
-      
+
       // ── DESNORMALIZAÇÃO FINANCEIRA ──
       // Carimba as regras do professor diretamente no documento da aula.
       professorBasePlays: input.professorBasePlays,
-      professorRoundingRule: input.professorRoundingRule || "round", // Fallback de segurança
+      professorRoundingRule: input.professorRoundingRule || "round",
       professorSharePct: input.professorSharePct,
       arenaSharePct: input.arenaSharePct,
     })
   }
-  
+
   await batch.commit()
   return dates.length
 }

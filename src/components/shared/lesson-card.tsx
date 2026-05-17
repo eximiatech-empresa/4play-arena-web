@@ -137,7 +137,7 @@ export function LessonCard({
             )}
             {lesson.isReserva && (
               <span className="text-[10px] font-semibold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">
-                Avulso +10%
+                {lesson.isBanco ? "Banco · +10%" : "Avulso · +10%"}
               </span>
             )}
           </div>

@@ -195,36 +195,66 @@ export function LessonDetailsModal({
               </div>
             </DialogHeader>
 
-            <div className="mt-4">
+            <div className="mt-4 space-y-2.5">
+              {/* Custo + badges de papel e horário */}
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-2xl font-bold text-white tabular-nums">
                   -{displayLesson.previewConsumption}P
                 </span>
-                {!displayLesson.isPeak && (
-                  <span className="flex items-center gap-1 text-[11px] font-semibold bg-white/15 text-white px-2 py-1 rounded-full">
+                {displayLesson.isPeak ? (
+                  <span className="flex items-center gap-1 text-[11px] font-semibold bg-amber-400/25 text-amber-200 px-2 py-1 rounded-full">
+                    <TrendingUp className="w-3 h-3" />
+                    Pico · +5%
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[11px] font-semibold bg-white/15 text-white/80 px-2 py-1 rounded-full">
                     <TrendingDown className="w-3 h-3" />
                     Fora de Pico
                   </span>
                 )}
-                {displayLesson.isPeak && (
-                  <span className="flex items-center gap-1 text-[11px] font-semibold bg-amber-400/25 text-amber-200 px-2 py-1 rounded-full">
-                    <TrendingUp className="w-3 h-3" />
-                    Horário de Pico +5%
+                {!displayLesson.isReserva ? (
+                  <span className="text-[11px] font-semibold bg-emerald-500/20 text-emerald-200 px-2 py-1 rounded-full">
+                    Titular
                   </span>
-                )}
-                {displayLesson.isReserva && (
-                  <span className="flex items-center gap-1 text-[11px] font-semibold bg-white/10 text-white/80 px-2 py-1 rounded-full">
+                ) : displayLesson.isBanco ? (
+                  <span className="flex items-center gap-1 text-[11px] font-semibold bg-blue-400/20 text-blue-200 px-2 py-1 rounded-full">
                     <Users className="w-3 h-3" />
-                    Avulso +10%
+                    Banco · +10%
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[11px] font-semibold bg-white/10 text-white/70 px-2 py-1 rounded-full">
+                    <Users className="w-3 h-3" />
+                    Avulso · +10%
                   </span>
                 )}
               </div>
+
+              {/* Detalhamento passo a passo do custo */}
               {displayLesson.professorBasePlays !== undefined && (
-                <p className="text-[11px] text-white/55 mt-1.5">
-                  Base {displayLesson.professorName}: {displayLesson.professorBasePlays}P
-                  {displayLesson.isPeak && " × 1,05 (pico)"}
-                  {displayLesson.isReserva && " × 1,10 (avulso)"}
-                </p>
+                <div className="rounded-xl bg-black/20 px-3 py-2 space-y-1">
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-white/60">Base — {displayLesson.professorName}</span>
+                    <span className="text-white/80 font-medium tabular-nums">{displayLesson.professorBasePlays}P</span>
+                  </div>
+                  {displayLesson.isPeak && (
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-amber-300/80">Horário de pico (18h–20h)</span>
+                      <span className="text-amber-300/80 font-medium">×1,05</span>
+                    </div>
+                  )}
+                  {displayLesson.isReserva && (
+                    <div className="flex justify-between text-[11px]">
+                      <span className="text-orange-300/80">
+                        {displayLesson.isBanco ? "Banco — não é titular" : "Avulso — não é titular"}
+                      </span>
+                      <span className="text-orange-300/80 font-medium">×1,10</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-[12px] font-semibold border-t border-white/10 pt-1.5">
+                    <span className="text-white/70">Total</span>
+                    <span className="text-white tabular-nums">-{displayLesson.previewConsumption}P</span>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -281,8 +311,13 @@ export function LessonDetailsModal({
               <div className="flex items-start gap-2 bg-muted rounded-xl p-3 text-xs text-muted-foreground">
                 <Zap className="w-3.5 h-3.5 text-zinc-400 mt-0.5 shrink-0" />
                 <span>
-                  Check-in abre <strong>24h antes</strong> para inscritos e{" "}
-                  <strong>6h antes</strong> para todos os alunos elegíveis.
+                  {!displayLesson.isReserva ? (
+                    <>Como <strong>titular</strong>, seu check-in abre <strong>24h antes</strong> da aula.</>
+                  ) : displayLesson.isBanco ? (
+                    <>Como aluno do <strong>banco</strong>, seu check-in abre <strong>6h antes</strong> da aula.</>
+                  ) : (
+                    <>Como aluno <strong>avulso</strong>, seu check-in abre <strong>6h antes</strong> da aula.</>
+                  )}
                 </span>
               </div>
             )}
@@ -310,7 +345,6 @@ export function LessonDetailsModal({
               ) : (
                 <Button
                   onClick={() => {
-                    console.log("Iniciando Check-in com os dados:", displayLesson)
                     checkIn.mutate(displayLesson, {
                       onSuccess: (updated) => {
                         setLessonOverride(updated)
