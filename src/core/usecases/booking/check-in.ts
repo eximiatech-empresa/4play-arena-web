@@ -9,6 +9,7 @@ type CheckInFn = (
   userId: string,
   lessonId: string,
   consumption: number,
+  professorId: string,
   professorName: string,
   level: string,
   isPeak: boolean,
@@ -20,8 +21,6 @@ export async function executeCheckIn(
   lesson: Lesson,
   checkInFn: CheckInFn,
 ): Promise<void> {
-  console.log("[DEBUG CHECK-IN] Iniciando processo para aluno:", userId, { lessonId: lesson.id })
-
   if (!userId) throw new NotAuthenticatedError(ERROS.NAO_AUTENTICADO)
 
   const status = getCheckInStatus(new Date(lesson.dateTime), lesson.isEnrolled, new Date())
@@ -34,6 +33,7 @@ export async function executeCheckIn(
     userId,
     lesson.id,
     lesson.previewConsumption,
+    lesson.professorId,
     lesson.professorName,
     lesson.level,
     lesson.isPeak,

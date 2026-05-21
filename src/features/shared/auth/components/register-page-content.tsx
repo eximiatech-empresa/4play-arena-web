@@ -168,7 +168,7 @@ function Step1({ onNext }: Step1Props) {
 // ─── Step 2 — Plan selection ──────────────────────────────────────────────────
 
 interface Step2Props {
-  onNext: (plan: StudentPlan, validityDays: number) => void
+  onNext: (plan: StudentPlan, validityDays: number, totalPlays: number, playValue: number) => void
 }
 
 function Step2({ onNext }: Step2Props) {
@@ -216,7 +216,7 @@ function Step2({ onNext }: Step2Props) {
         disabled={!selected}
         onClick={() => {
           const planConfig = plans.find((p) => p.id === selected)
-          if (selected && planConfig) onNext(selected, planConfig.validityDays)
+          if (selected && planConfig) onNext(selected, planConfig.validityDays, planConfig.totalPlays, planConfig.playValue)
         }}
         className="w-full h-11 bg-brand hover:bg-brand-dark text-brand-foreground font-medium transition-colors"
       >
@@ -305,11 +305,13 @@ interface OnboardingState {
   email: string
   plan: StudentPlan | null
   validityDays: number
+  totalPlays: number
+  playValue: number
 }
 
 export function RegisterPageContent() {
   const [step, setStep] = useState<1 | 2 | 3>(1)
-  const [state, setState] = useState<OnboardingState>({ uid: "", name: "", email: "", plan: null, validityDays: 30 })
+  const [state, setState] = useState<OnboardingState>({ uid: "", name: "", email: "", plan: null, validityDays: 30, totalPlays: 0, playValue: 0 })
   const { mutate: finishOnboarding, isPending, error } = useOnboarding()
 
   const { title, subtitle } = STEP_TITLES[step]
@@ -319,8 +321,8 @@ export function RegisterPageContent() {
     setStep(2)
   }
 
-  function handleStep2(plan: StudentPlan, validityDays: number) {
-    setState((s) => ({ ...s, plan, validityDays }))
+  function handleStep2(plan: StudentPlan, validityDays: number, totalPlays: number, playValue: number) {
+    setState((s) => ({ ...s, plan, validityDays, totalPlays, playValue }))
     setStep(3)
   }
 
@@ -333,6 +335,8 @@ export function RegisterPageContent() {
       plan: state.plan,
       originalTeacherId,
       validityDays: state.validityDays,
+      totalPlays: state.totalPlays,
+      playValue: state.playValue,
     })
   }
 

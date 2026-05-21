@@ -1,11 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2, TrendingUp, CheckCircle2, ClockAlert, Info, Medal, UserX, CalendarDays, TrendingDown, Filter, ChevronDown, CalendarRange, List, BarChart } from "lucide-react"
+import { Loader2, TrendingUp, CheckCircle2, ClockAlert, Info, Medal, UserX, CalendarDays, TrendingDown, Filter, CalendarRange, List, BarChart, LayoutGrid, Bug } from "lucide-react"
 import { useTeacherWallet, type TimeFilter } from "@/features/teacher/carteira/hooks/use-teacher-wallet"
+import { TeacherWalletDebugPanel } from "./teacher-wallet-debug-panel"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 import type { TeacherTransactionType } from "@/core/entities/teacher-wallet"
+import { formatCurrency } from "@/utils/formatters"
 import { ResponsiveContainer, BarChart as RechartsBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts"
 
 const TRANSACTION_ICONS: Record<TeacherTransactionType, React.ReactNode> = {
@@ -21,6 +23,7 @@ const TRANSACTION_LABELS: Record<TeacherTransactionType, string> = {
 }
 
 export function TeacherWalletPageContent() {
+  const [pageTab, setPageTab] = useState<"wallet" | "debug">("wallet")
   const [filter, setFilter] = useState<TimeFilter>("this_year")
   const [viewMode, setViewMode] = useState<"list" | "chart">("list")
   const { balance, transactions, insights, isLoading, isError } = useTeacherWallet(filter)
@@ -54,8 +57,37 @@ export function TeacherWalletPageContent() {
     )
   }
 
+  if (pageTab === "debug" && process.env.NODE_ENV === "development") {
+    return (
+      <>
+        <div className="px-5 pt-6 lg:px-8 max-w-5xl mx-auto">
+          <button
+            onClick={() => setPageTab("wallet")}
+            className="flex items-center gap-2 text-sm text-zinc-500 hover:text-foreground transition-colors mb-4"
+          >
+            ← Voltar para a Carteira
+          </button>
+        </div>
+        <TeacherWalletDebugPanel />
+      </>
+    )
+  }
+
   return (
     <div className="px-5 py-6 lg:px-8 lg:py-8 max-w-5xl mx-auto space-y-8">
+      {/* Tab Debug */}
+      { process.env.NODE_ENV === "development" &&(
+
+        <div className="flex justify-end">
+        <button
+          onClick={() => setPageTab("debug")}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-zinc-200 dark:border-zinc-700 text-zinc-500 hover:text-foreground hover:border-zinc-400 transition-colors"
+          >
+          <Bug className="w-3.5 h-3.5" />
+          Debug
+        </button>
+      </div>
+    )}
       {/* Hero / Header */}
       <section className="bg-card rounded-2xl border border-border shadow-sm p-6 md:p-8 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1.5 bg-emerald-500" />
@@ -85,11 +117,8 @@ export function TeacherWalletPageContent() {
           {/* Saldo Total Disponível */}
           <div className="flex flex-col items-center justify-center pb-4 md:pb-0">
             <div className="flex items-end gap-2">
-              <span className="text-6xl font-bold leading-none tabular-nums text-foreground">
-                {balance.toFixed(2)}
-              </span>
-              <span className="text-xl font-medium text-zinc-400 mb-1">
-                Plays
+              <span className="text-5xl font-bold leading-none tabular-nums text-foreground">
+                {formatCurrency(balance)}
               </span>
             </div>
             <p className="mt-4 text-sm text-emerald-600 font-medium bg-emerald-50 px-3 py-1 flex items-center gap-1.5 rounded-full border border-emerald-200">
@@ -98,26 +127,23 @@ export function TeacherWalletPageContent() {
             </p>
           </div>
 
-          {/* Ganhos no Ano */}
+          {/* Ganhos no Período */}
           <div className="flex flex-col items-center justify-center pt-4 md:pt-0">
             <div className="flex items-end gap-2">
-              <span className="text-5xl font-bold leading-none tabular-nums text-emerald-600">
-                {insights.yearlyEarnings.toFixed(2)}
-              </span>
-              <span className="text-lg font-medium text-zinc-400 mb-1">
-                Plays
+              <span className="text-4xl font-bold leading-none tabular-nums text-emerald-600">
+                {formatCurrency(insights.yearlyEarnings)}
               </span>
             </div>
             <p className="mt-4 text-sm text-zinc-600 font-medium bg-zinc-100 flex items-center gap-1.5 dark:bg-zinc-800 dark:text-zinc-300 px-3 py-1 rounded-full border border-zinc-200 dark:border-zinc-700">
               <CalendarRange className="w-4 h-4 text-zinc-500" />
-              Total Ganho no Ano
+              Total Ganho no Período
             </p>
           </div>
         </div>
       </section>
 
       {/* Insights Section */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <section className="bg-card rounded-2xl border border-border shadow-sm p-6 w-full flex flex-col h-full">
           <div className="flex items-center gap-2 mb-4 text-brand">
             <Medal className="w-5 h-5 shrink-0" />
@@ -164,14 +190,14 @@ export function TeacherWalletPageContent() {
               <p className="text-sm text-zinc-500 font-medium">Mês Atual</p>
               <p className="text-2xl font-bold text-foreground tabular-nums">{insights.monthlyComparison.currentMonthClasses}</p>
             </div>
-            
+
             <div className="h-px bg-border w-full" />
-            
+
             <div className="flex items-center justify-between">
               <p className="text-sm text-zinc-500 font-medium">Mês Passado</p>
               <div className="flex items-center gap-2">
                 <p className="text-base font-semibold text-zinc-600 tabular-nums">{insights.monthlyComparison.lastMonthClasses}</p>
-                
+
                 {insights.monthlyComparison.percentageChange >= 0 ? (
                   <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
                     <TrendingUp className="w-3 h-3" />
@@ -185,6 +211,33 @@ export function TeacherWalletPageContent() {
                 )}
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Distribuição de Planos */}
+        <section className="bg-card rounded-2xl border border-border shadow-sm p-6 w-full flex flex-col h-full">
+          <div className="flex items-center gap-2 mb-4 text-violet-500">
+            <LayoutGrid className="w-5 h-5 shrink-0" />
+            <h2 className="text-sm font-semibold text-foreground uppercase tracking-widest">Planos dos Alunos</h2>
+          </div>
+          <div className="flex-1 space-y-3">
+            {insights.planDistribution.map((item) => (
+              <div key={item.planId} className="flex flex-col gap-1">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-foreground">{item.label}</p>
+                  <span className="text-[10px] font-semibold text-zinc-400 uppercase">{item.transactionCount} check-ins</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-md">
+                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">{item.playsCount.toFixed(1)}</span>
+                    <span className="text-[10px] uppercase font-semibold text-emerald-600">plays</span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md">
+                    <span className="text-xs font-bold text-zinc-600 dark:text-zinc-300">{formatCurrency(item.brlAmount)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       </div>
@@ -285,8 +338,13 @@ export function TeacherWalletPageContent() {
                   </div>
 
                   <div className="text-right shrink-0 mt-2 sm:mt-0 ml-14 sm:ml-0">
-                    <p className="text-lg font-bold tabular-nums text-emerald-600">
-                      +{tx.amount.toFixed(2)} Plays
+                    {tx.playsConsumed != null && (
+                      <p className="text-lg font-bold tabular-nums text-emerald-600">
+                        +{tx.playsConsumed.toFixed(2)} Plays
+                      </p>
+                    )}
+                    <p className={cn("tabular-nums text-zinc-500", tx.playsConsumed != null ? "text-sm font-medium" : "text-lg font-bold text-emerald-600")}>
+                      {formatCurrency(tx.amount)}
                     </p>
                   </div>
                 </div>

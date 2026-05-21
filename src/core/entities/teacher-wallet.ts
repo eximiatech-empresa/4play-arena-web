@@ -10,7 +10,7 @@ export const TeacherTransactionSchema = z.object({
   id: z.string(),
   teacherId: z.string(),
   studentId: z.string(),
-  studentName: z.string().optional(),
+  studentName: z.string().nullish(),
   lessonId: z.string().nullable().optional(),
   type: TeacherTransactionTypeSchema,
   /** Professor's share of the check-in revenue in BRL. */
@@ -47,11 +47,20 @@ export const MonthlyComparisonSchema = z.object({
   percentageChange: z.number(),
 })
 
+export const PlanDistributionItemSchema = z.object({
+  planId: z.string(),
+  label: z.string(),
+  playsCount: z.number(),
+  brlAmount: z.number(),
+  transactionCount: z.number(),
+})
+
 export const TeacherWalletInsightsSchema = z.object({
   topStudents: z.array(InsightItemSchema),
   mostMissed: z.array(InsightItemSchema),
   monthlyComparison: MonthlyComparisonSchema,
   yearlyEarnings: z.number().nonnegative(),
+  planDistribution: z.array(PlanDistributionItemSchema),
 })
 
 export const TeacherWalletResponseSchema = TeacherWalletSchema.extend({
@@ -60,5 +69,6 @@ export const TeacherWalletResponseSchema = TeacherWalletSchema.extend({
 
 export type InsightItem = z.infer<typeof InsightItemSchema>
 export type MonthlyComparison = z.infer<typeof MonthlyComparisonSchema>
+export type PlanDistributionItem = z.infer<typeof PlanDistributionItemSchema>
 export type TeacherWalletInsights = z.infer<typeof TeacherWalletInsightsSchema>
 export type TeacherWalletResponse = z.infer<typeof TeacherWalletResponseSchema>

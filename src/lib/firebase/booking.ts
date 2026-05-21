@@ -17,6 +17,7 @@ import { db } from "./firestore"
 import { mapRawDocToLesson } from "@/core/mappers/lesson.mapper"
 import { mapRawDocToLessonHistory } from "@/core/mappers/lesson-history.mapper"
 import { mapRawDocToTeacherHistory } from "@/core/mappers/teacher-history.mapper"
+import { PROFESSOR_MAP } from "@/core/constants/professors"
 import {
   UserNotFoundError,
   LessonNotFoundError,
@@ -26,6 +27,7 @@ import {
 } from "@/core/errors/exceptions"
 import { ERROS } from "@/core/errors/erros"
 import { PLAN_CONFIGS } from "@/core/constants/plan-pricing"
+import { getProfessorById } from "@/core/constants/professors"
 import { calculateCheckinRevenue } from "@/core/math/financial-engine"
 import { resolvePlayValue } from "@/core/math/resolve-play-value"
 import type { Lesson } from "@/core/entities/lesson"
@@ -96,7 +98,8 @@ export async function getLessonsByDate(dateStr: string, studentId: string, plan:
 export async function processCheckIn(
   studentId: string,
   lessonId: string,
-  playsCost: number,   // previewConsumption — used as fallback if professor has no lessonPrice
+  playsCost: number,   
+  professorId: string,
   professorName: string,
   classLevel: string,
   isPeak: boolean,
@@ -105,30 +108,69 @@ export async function processCheckIn(
   const userRef    = doc(db, "users", studentId)
   const lessonRef  = doc(db, "lessons", lessonId)
 
+  // ── RESOLUÇÃO PRÉ-TRANSAÇÃO DO PROFESSOR ──────────────────────────────────
+  // Fazemos a query ANTES da transação para não quebrar a atomicidade do Firebase.
+  // Firebase Auth UIDs têm 28+ caracteres. IDs seedados ("paulinho", "biel") têm < 20.
+  // Se o ID parecer um slug, pulamos a busca direta e sempre resolvemos pelo nome
+  // para garantir que professorRef.id seja o Firebase Auth UID real.
+  let professorRef = doc(db, "users", professorId)
+  const isSlugId = professorId.length < 20
+
+  if (isSlugId) {
+    const byNameSnap = await getDocs(
+      query(
+        collection(db, "users"),
+        where("role", "==", "TEACHER"),
+        where("name", "==", professorName),
+      )
+    )
+    if (byNameSnap.empty) {
+      throw new Error(`Professor "${professorName}" não encontrado no banco de dados! Contate o administrador.`)
+    }
+    professorRef = doc(db, "users", byNameSnap.docs[0].id)
+  } else {
+    const directSnap = await getDoc(professorRef)
+    if (!directSnap.exists()) {
+      const byNameSnap = await getDocs(
+        query(
+          collection(db, "users"),
+          where("role", "==", "TEACHER"),
+          where("name", "==", professorName),
+        )
+      )
+      if (byNameSnap.empty) {
+        throw new Error(`Professor "${professorName}" não encontrado no banco de dados! Contate o administrador.`)
+      }
+      professorRef = doc(db, "users", byNameSnap.docs[0].id)
+    }
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   await runTransaction(db, async (tx) => {
     // ── 1. Reads (must all precede writes in a Firestore transaction) ─────────
-    const [userSnap, lessonSnap] = await Promise.all([
+    // Agora pegamos os 3 documentos de forma atômica
+    const [userSnap, lessonSnap, professorSnap] = await Promise.all([
       tx.get(userRef),
       tx.get(lessonRef),
+      tx.get(professorRef),
     ])
 
     if (!userSnap.exists())   throw new UserNotFoundError(ERROS.USUARIO_NAO_ENCONTRADO)
     if (!lessonSnap.exists()) throw new LessonNotFoundError(ERROS.AULA_NAO_ENCONTRADA)
+    if (!professorSnap.exists()) throw new Error("CRÍTICO: Documento do professor não existe durante a transação.")
 
     const lessonData = lessonSnap.data()
+    // O "!" no final garante ao TypeScript que os dados existem, pois já verificamos o .exists() acima
+    const professorData = professorSnap.data()! 
 
     if ((lessonData.enrolledStudentIds?.length ?? 0) >= lessonData.totalSpots)
-      throw new LessonFullError(ERROS.AULA_LOTADA)
+    throw new LessonFullError(ERROS.AULA_LOTADA)
     if (lessonData.enrolledStudentIds?.includes(studentId))
       throw new AlreadyEnrolledError(ERROS.JA_INSCRITO)
 
-    const professorRef  = doc(db, "users", lessonData.professorId)
-    const professorSnap = await tx.get(professorRef)
-
     // Authoritative cost: professor's current lessonPrice; fallback to previewConsumption
-    const professorData = professorSnap.exists() ? professorSnap.data() : null
     const actualCost: number =
-      typeof professorData?.lessonPrice === "number" && professorData.lessonPrice > 0
+      typeof professorData.lessonPrice === "number" && professorData.lessonPrice > 0
         ? professorData.lessonPrice
         : playsCost
 
@@ -137,7 +179,6 @@ export async function processCheckIn(
     if (currentBalance < actualCost) throw new InsufficientBalanceError(ERROS.SALDO_INSUFICIENTE)
 
     const newStudentBalance = currentBalance - actualCost
-    const currentEarnings: number = professorData?.earningsBalance || 0
     const now = new Date().toISOString()
 
     const playValue = resolvePlayValue(userData, PLAN_CONFIGS)
@@ -154,7 +195,7 @@ export async function processCheckIn(
     tx.update(userRef, { walletBalance: increment(-actualCost) })
     tx.update(lessonRef, { enrolledStudentIds: arrayUnion(studentId) })
 
-    // Student debit transaction — includes playValue for monetary audit trail
+    // Student debit transaction
     const txRef = doc(collection(db, "transactions"))
     tx.set(txRef, {
       id: txRef.id,
@@ -172,40 +213,56 @@ export async function processCheckIn(
       createdAt: now,
     } satisfies Transaction)
 
-    // Professor earnings + teacher_transactions only if professor doc exists
-    if (professorSnap.exists()) {
-      const shareConfig = {
-        professorSharePct: lessonData.professorSharePct ?? 0.5,
-        arenaSharePct: lessonData.arenaSharePct ?? 0.5,
-      }
-      const revenue = calculateCheckinRevenue(actualCost, playValue, shareConfig)
-      
-      const newProfBalance = currentEarnings + revenue.professorCredit
-      if (Number.isNaN(newProfBalance) || Number.isNaN(revenue.professorCredit)) {
-        throw new Error("CRÍTICO: Tentativa de salvar NaN (saldo do professor) no banco de dados evitada.")
-      }
+    // Professor earnings
+    const legacyCfg = getProfessorById(lessonData.professorId)
+    const resolvedProfessorSharePct =
+      typeof lessonData.professorSharePct === "number"
+        ? lessonData.professorSharePct
+        : (legacyCfg?.professorSharePct ?? 0.5)
+        
+    const resolvedArenaSharePct =
+      typeof lessonData.arenaSharePct === "number"
+        ? lessonData.arenaSharePct
+        : (legacyCfg?.arenaSharePct ?? 0.5)
 
-      tx.update(professorRef, { earningsBalance: increment(revenue.professorCredit) })
-
-      const teacherTxRef = doc(collection(db, "teacher_transactions"))
-      tx.set(teacherTxRef, {
-        id: teacherTxRef.id,
-        teacherId: lessonData.professorId,
-        studentId,
-        studentName: userSnap.data().name ?? null,
-        lessonId,
-        type: "CHECK_IN_CREDIT",
-        amount: revenue.professorCredit,
-        playsConsumed: actualCost,
-        playValue,
-        rsBruto: revenue.rsBruto,
-        arenaCredit: revenue.arenaCredit,
-        createdAt: now,
-      })
+    if (resolvedProfessorSharePct <= 0) {
+      throw new Error(
+        `CRÍTICO: professorSharePct é ${resolvedProfessorSharePct} para a aula "${lessonId}". ` +
+        `Verifique o documento no Firestore.`
+      )
     }
+
+    const shareConfig = {
+      professorSharePct: resolvedProfessorSharePct,
+      arenaSharePct: resolvedArenaSharePct,
+    }
+    const revenue = calculateCheckinRevenue(actualCost, playValue, shareConfig)
+
+    const currentEarnings: number = professorData.earningsBalance || 0
+    const newProfBalance = currentEarnings + revenue.professorCredit
+    if (Number.isNaN(newProfBalance) || Number.isNaN(revenue.professorCredit)) {
+      throw new Error("CRÍTICO: Tentativa de salvar NaN (saldo do professor) no banco de dados evitada.")
+    }
+
+    tx.update(professorRef, { earningsBalance: increment(revenue.professorCredit) })
+
+    const teacherTxRef = doc(collection(db, "teacher_transactions"))
+    tx.set(teacherTxRef, {
+      id: teacherTxRef.id,
+      teacherId: professorRef.id, // Garante que usa o ID resolvido corretamente
+      studentId,
+      studentName: userData.name ?? null, // Atualizado para pegar direto do userData validado
+      lessonId,
+      type: "CHECK_IN_CREDIT",
+      amount: revenue.professorCredit,
+      playsConsumed: actualCost,
+      playValue,
+      rsBruto: revenue.rsBruto,
+      arenaCredit: revenue.arenaCredit,
+      createdAt: now,
+    })
   })
 }
-
 export async function processCheckOut(
   studentId: string,
   lessonId: string,
@@ -225,16 +282,12 @@ export async function processCheckOut(
     const userSnap = await getDoc(userRef)
 
     if (userSnap.exists()) {
-      const currentBalance = (typeof userSnap.data().walletBalance === "number" && !Number.isNaN(userSnap.data().walletBalance)) 
-        ? userSnap.data().walletBalance 
-        : 0
-      const newBalance = currentBalance + playsRefund
-
-      if (Number.isNaN(newBalance)) {
-        throw new Error("CRÍTICO: Tentativa de salvar NaN (novo saldo do aluno no checkout) evitada.")
-      }
-
-      batch.update(userRef, { walletBalance: newBalance })
+      const currentBalance =
+        typeof userSnap.data().walletBalance === "number" && !Number.isNaN(userSnap.data().walletBalance)
+          ? (userSnap.data().walletBalance as number)
+          : 0
+      // Use increment() so concurrent checkouts don't overwrite each other's refund.
+      batch.update(userRef, { walletBalance: increment(playsRefund) })
 
       const txRef = doc(collection(db, "transactions"))
       const tx: Transaction = {
@@ -244,7 +297,7 @@ export async function processCheckOut(
         lessonId,
         type: "credit",
         amount: playsRefund,
-        balanceAfter: newBalance,
+        balanceAfter: currentBalance + playsRefund,
         professorName: `${professorName} (Estorno)`,
         classLevel: null,
         isPeak: null,
@@ -474,11 +527,26 @@ export async function getStudentLessonHistory(studentId: string): Promise<Lesson
 // Sorting is done client-side to avoid a composite index on professorId + orderBy.
 // Transaction fetch is isolated so a missing index or empty result never blocks lesson display.
 export async function getTeacherLessonHistory(teacherId: string): Promise<TeacherLessonHistoryEntry[]> {
-  const lessonsSnap = await getDocs(
-    query(
-      collection(db, "lessons"),
-      where("professorId", "==", teacherId),
-    ),
+  // Resolve legacy slug: lições seedadas têm professorId = slug ("paulinho"), não o Firebase Auth UID.
+  // Buscamos o documento do professor para obter o nome e encontrar o slug no PROFESSOR_MAP.
+  const teacherSnap = await getDoc(doc(db, "users", teacherId))
+  const teacherName = teacherSnap.exists() ? (teacherSnap.data().name as string | undefined) : undefined
+  const legacySlug = teacherName
+    ? (Object.entries(PROFESSOR_MAP).find(
+        ([, cfg]) => cfg.name.toLowerCase() === teacherName.toLowerCase(),
+      )?.[0] ?? null)
+    : null
+
+  const queryByUid = getDocs(query(collection(db, "lessons"), where("professorId", "==", teacherId)))
+  const queryBySlug =
+    legacySlug && legacySlug !== teacherId
+      ? getDocs(query(collection(db, "lessons"), where("professorId", "==", legacySlug)))
+      : Promise.resolve(null)
+
+  const [uidSnap, slugSnap] = await Promise.all([queryByUid, queryBySlug])
+  const seen = new Set<string>()
+  const allLessonDocs = [...uidSnap.docs, ...(slugSnap?.docs ?? [])].filter(
+    (d) => !seen.has(d.id) && seen.add(d.id),
   )
 
   const earnedByLesson: Record<string, number> = {}
@@ -506,7 +574,7 @@ export async function getTeacherLessonHistory(teacherId: string): Promise<Teache
     // Transaction fetch failed — lessons still display with totalEarned: 0
   }
 
-  const entries = lessonsSnap.docs.flatMap((d) => {
+  const entries = allLessonDocs.flatMap((d) => {
     const entry = mapRawDocToTeacherHistory(d.id, d.data() as Record<string, unknown>, earnedByLesson, namesByLesson)
     return entry ? [entry] : []
   })
