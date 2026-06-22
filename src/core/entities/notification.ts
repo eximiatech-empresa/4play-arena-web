@@ -4,6 +4,7 @@ export const NotificationTypeSchema = z.enum([
   "lesson_cancelled",
   "lesson_rescheduled",
   "lesson_finished",
+  "referral_bonus",
 ])
 
 export const NotificationSchema = z.object({
@@ -12,7 +13,9 @@ export const NotificationSchema = z.object({
   type: NotificationTypeSchema,
   title: z.string().optional(),
   message: z.string(),
-  lessonId: z.string(),
+  lessonId: z.string().nullable().optional(),
+  /** Plays credited — populated for `referral_bonus` notifications. */
+  bonusCredits: z.number().nullable().optional(),
   read: z.boolean().default(false),
   createdAt: z.string(),
 })

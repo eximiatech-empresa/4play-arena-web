@@ -2,6 +2,7 @@ import { collection, query, where, getDocs } from "firebase/firestore"
 import { db } from "./firestore"
 import { TransactionSchema } from "@/core/entities/wallet"
 import type { Transaction } from "@/core/entities/wallet"
+import { normalizeTransactionDoc } from "./transactions"
 
 export async function getAdminTransactionsByMonth(
   year: number,
@@ -20,7 +21,7 @@ export async function getAdminTransactionsByMonth(
   )
 
   return snap.docs.flatMap((d) => {
-    const parsed = TransactionSchema.safeParse(d.data())
+    const parsed = TransactionSchema.safeParse(normalizeTransactionDoc(d.id, d.data()))
     return parsed.success ? [parsed.data] : []
   })
 }

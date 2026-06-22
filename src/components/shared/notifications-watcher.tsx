@@ -16,6 +16,7 @@ export function NotificationsWatcher() {
 
     notifications.forEach((notification) => {
       if (shownIds.current.has(notification.id)) return
+      if (notification.type === "referral_bonus") return // shown via ReferralBonusModal instead
       shownIds.current.add(notification.id)
 
       const isCancel = notification.type === "lesson_cancelled"

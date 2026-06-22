@@ -34,6 +34,8 @@ export const TransactionSchema = z.object({
   isReserva: z.boolean().nullable().optional(),
   /** Monetary value of one Play for the student's plan at the time of the transaction. */
   playValue: z.number().positive().nullable().optional(),
+  /** Free-text override for the transaction description (e.g. "Bônus de Indicação"). */
+  note: z.string().nullable().optional(),
   createdAt: z.string(),
 })
 

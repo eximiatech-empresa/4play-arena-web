@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
-    "seed:plans": "tsx scripts/seed-plans.ts"
+    "seed:plans": "tsx scripts/seed-plans.ts",
+    "migrate:referral-codes": "tsx scripts/migrate-referral-codes.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

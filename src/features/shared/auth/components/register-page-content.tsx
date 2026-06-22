@@ -67,7 +67,7 @@ function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
 // ─── Step 1 — Account creation ────────────────────────────────────────────────
 
 interface Step1Props {
-  onNext: (uid: string, name: string, email: string) => void
+  onNext: (uid: string, name: string, email: string, referralCode: string) => void
 }
 
 function Step1({ onNext }: Step1Props) {
@@ -82,7 +82,7 @@ function Step1({ onNext }: Step1Props) {
     formState: { errors },
   } = useForm<RegisterInput>({
     resolver: zodResolver(RegisterSchema),
-    defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
+    defaultValues: { name: "", email: "", password: "", confirmPassword: "", referralCode: "" },
   })
 
   async function onSubmit(data: RegisterInput) {
@@ -98,7 +98,7 @@ function Step1({ onNext }: Step1Props) {
       setError(result.error?.message ?? "Erro ao criar conta")
       return
     }
-    onNext(result.data.user.id, data.name, data.email)
+    onNext(result.data.user.id, data.name, data.email, data.referralCode ?? "")
   }
 
   return (
@@ -149,6 +149,13 @@ function Step1({ onNext }: Step1Props) {
           </button>
         </div>
         {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>}
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="referralCode" className="text-zinc-700 font-medium">Código de convite (opcional)</Label>
+        <Input id="referralCode" type="text" placeholder="4PLAY-XXXXX" autoComplete="off"
+          className="h-11 focus-visible:ring-brand/40 focus-visible:border-brand"
+          {...register("referralCode")} />
       </div>
 
       {error && (
@@ -303,6 +310,7 @@ interface OnboardingState {
   uid: string
   name: string
   email: string
+  referralCode: string
   plan: StudentPlan | null
   validityDays: number
   totalPlays: number
@@ -311,13 +319,13 @@ interface OnboardingState {
 
 export function RegisterPageContent() {
   const [step, setStep] = useState<1 | 2 | 3>(1)
-  const [state, setState] = useState<OnboardingState>({ uid: "", name: "", email: "", plan: null, validityDays: 30, totalPlays: 0, playValue: 0 })
+  const [state, setState] = useState<OnboardingState>({ uid: "", name: "", email: "", referralCode: "", plan: null, validityDays: 30, totalPlays: 0, playValue: 0 })
   const { mutate: finishOnboarding, isPending, error } = useOnboarding()
 
   const { title, subtitle } = STEP_TITLES[step]
 
-  function handleStep1(uid: string, name: string, email: string) {
-    setState((s) => ({ ...s, uid, name, email }))
+  function handleStep1(uid: string, name: string, email: string, referralCode: string) {
+    setState((s) => ({ ...s, uid, name, email, referralCode }))
     setStep(2)
   }
 
@@ -337,6 +345,7 @@ export function RegisterPageContent() {
       validityDays: state.validityDays,
       totalPlays: state.totalPlays,
       playValue: state.playValue,
+      referralCode: state.referralCode || undefined,
     })
   }
 

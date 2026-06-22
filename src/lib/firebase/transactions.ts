@@ -1,7 +1,22 @@
-import { doc, collection, query, where, getDocs, writeBatch, updateDoc } from "firebase/firestore"
+import { doc, collection, query, where, getDocs, writeBatch, updateDoc, Timestamp } from "firebase/firestore"
 import { db } from "./firestore"
 import type { Transaction, Plan } from "@/core/entities/wallet"
 import { TransactionSchema } from "@/core/entities/wallet"
+
+// Documentos antigos podem não ter id/lessonId/professorName/classLevel e
+// guardar createdAt como Timestamp do Firestore em vez de string ISO.
+export function normalizeTransactionDoc(docId: string, raw: Record<string, unknown>) {
+  const createdAt = raw.createdAt
+  return {
+    ...raw,
+    id: typeof raw.id === "string" ? raw.id : docId,
+    lessonId: raw.lessonId ?? null,
+    professorName: raw.professorName ?? null,
+    classLevel: raw.classLevel ?? null,
+    balanceAfter: typeof raw.balanceAfter === "number" ? raw.balanceAfter : 0,
+    createdAt: createdAt instanceof Timestamp ? createdAt.toDate().toISOString() : createdAt,
+  }
+}
 
 export async function getStudentTransactions(studentId: string): Promise<Transaction[]> {
   // 1. Removemos o orderBy do Firebase para NÃO exigir Índice Composto!
@@ -10,10 +25,10 @@ export async function getStudentTransactions(studentId: string): Promise<Transac
     where("studentId", "==", studentId)
   )
   const snap = await getDocs(q)
-  
+
   const transactions = snap.docs
     .map((d) => {
-      const result = TransactionSchema.safeParse(d.data())
+      const result = TransactionSchema.safeParse(normalizeTransactionDoc(d.id, d.data()))
       if (!result.success) {
         console.warn("Transação ignorada por erro de formato:", result.error)
       }

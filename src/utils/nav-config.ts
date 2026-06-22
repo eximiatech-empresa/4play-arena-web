@@ -11,6 +11,8 @@ import {
   PackageOpen,
   UsersRound,
   GraduationCap,
+  Gift,
+  Users2,
   type LucideIcon,
 } from "lucide-react"
 
@@ -107,6 +109,18 @@ export const MENU_CONFIG: NavItemConfig[] = [
     href: "/users-management",
     icon: Users,
     roles: ["ADMIN"],
+  },
+  {
+    label: "Indique um Amigo",
+    href: "/indique-um-amigo",
+    icon: Gift,
+    roles: ["STUDENT"],
+  },
+  {
+    label: "Minha Família",
+    href: "/familia",
+    icon: Users2,
+    roles: ["STUDENT"],
   },
   { label: "Perfil", href: "/perfil", icon: UserCircle },
 ]

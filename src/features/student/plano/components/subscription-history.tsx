@@ -4,10 +4,12 @@ import { AlertTriangle, CreditCard, RefreshCw, ShoppingBag, ReceiptText, Package
 import { cn } from "@/lib/utils"
 import { useSubscriptionHistory, usePackageTransactions } from "@/features/student/plano/hooks/use-subscription"
 import { usePlans } from "@/features/shared/planos-data/hooks/use-plans"
+import { useCurrentUser } from "@/hooks/use-current-user"
 import { formatCurrency, formatDateTimeBR } from "@/utils/formatters"
 import type { SubscriptionDocument, SubscriptionStatus } from "@/core/entities/subscription"
 import type { PlanConfig } from "@/core/constants/plan-pricing"
 import type { Transaction } from "@/core/entities/wallet"
+import type { StudentUser } from "@/core/entities/user"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -168,6 +170,58 @@ function ActivePlanCard({ sub, planData }: { sub: SubscriptionDocument; planData
   )
 }
 
+// Fallback hero card built directly from the user document's currentPlanId/planExpiresAt
+// — used whenever there's no matching doc in `subscriptions` (the collection web purchases
+// don't currently write to). This is the only reliably-correct source for the web flow.
+function RealPlanCard({ student, planData }: { student: StudentUser; planData: PlanConfig | undefined }) {
+  const isExpired = student.planExpiresAt ? new Date(student.planExpiresAt) < new Date() : false
+
+  return (
+    <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+      <div className="px-6 py-4 border-b border-border flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">Plano Atual</h2>
+          <p className="text-xs text-zinc-400 mt-0.5">Dados da sua conta</p>
+        </div>
+        <span
+          className={cn(
+            "inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border",
+            isExpired
+              ? "bg-zinc-500/10 text-zinc-500 border-zinc-500/20"
+              : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+          )}
+        >
+          {isExpired ? "Expirado" : "Ativo"}
+        </span>
+      </div>
+
+      <div className="p-6 space-y-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-2xl font-bold text-foreground">{planData?.label ?? student.currentPlanId}</p>
+            <p className="text-sm text-zinc-400 mt-0.5">
+              {planData?.totalPlays != null ? `${planData.totalPlays} Plays · ` : ""}
+              {planData?.validityDays != null ? `${planData.validityDays} dias` : ""}
+            </p>
+          </div>
+          {planData && (
+            <p className="text-xl font-bold text-brand shrink-0">{formatCurrency(planData.priceInCents / 100)}</p>
+          )}
+        </div>
+
+        {student.planExpiresAt && (
+          <div className="pt-4 border-t border-border">
+            <p className="text-[11px] font-medium text-zinc-400 uppercase tracking-wide">Válido até</p>
+            <p className="text-sm font-semibold text-foreground mt-0.5">
+              {fmtDate(student.planExpiresAt)}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── History card ─────────────────────────────────────────────────────────────
 
 function HistoryCard({ sub, planData }: { sub: SubscriptionDocument; planData: PlanConfig | undefined }) {
@@ -294,6 +348,8 @@ function EmptyState() {
 // ─── Page component ───────────────────────────────────────────────────────────
 
 export function SubscriptionHistory() {
+  const { data: currentUser } = useCurrentUser()
+  const student = currentUser?.role === "STUDENT" ? (currentUser as StudentUser) : null
   const { data: subscriptions, isLoading } = useSubscriptionHistory()
   const { data: packageTxs = [], isLoading: isLoadingPackages } = usePackageTransactions()
   const { data: plans } = usePlans()
@@ -304,7 +360,8 @@ export function SubscriptionHistory() {
     (s) => s.status === "active" || s.status === "trialing",
   )
 
-  const hasAnyData = subscriptions?.length || packageTxs.length
+  const hasRealPlan = !!student?.currentPlanId && !!student.planExpiresAt
+  const hasAnyData = subscriptions?.length || packageTxs.length || hasRealPlan
 
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6">
@@ -319,8 +376,12 @@ export function SubscriptionHistory() {
         <EmptyState />
       ) : (
         <>
-          {activeSub && (
+          {activeSub ? (
             <ActivePlanCard sub={activeSub} planData={planMap.get(activeSub.planId)} />
+          ) : (
+            student && hasRealPlan && (
+              <RealPlanCard student={student} planData={planMap.get(student.currentPlanId)} />
+            )
           )}
 
           {subscriptions && subscriptions.length > 0 && (

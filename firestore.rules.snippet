@@ -1,0 +1,41 @@
+// Firestore security rules — snippet for "Indique um Amigo" + "Gerenciar Família".
+// No firestore.rules file exists in this repo yet (rules are managed in the
+// Firebase Console). Merge these rules blocks into your existing rules_version='2'
+// service cloud.firestore { match /databases/{database}/documents { ... } } block.
+
+// referrals/{referralId}
+// - referrerId: uid of the student who owns the invite
+// - friendEmail/status/etc: written only by the client that owns the invite,
+//   or transitioned to CONCLUIDO by redeemReferralCode() at signup time.
+match /referrals/{referralId} {
+  allow read: if request.auth != null && request.auth.uid == resource.data.referrerId;
+  allow create: if request.auth != null && request.auth.uid == request.resource.data.referrerId;
+  // Allow the signup flow (redeemReferralCode) to mark a referral CONCLUIDO,
+  // and allow the referrer's own client to do nothing else mutable here.
+  allow update: if request.auth != null;
+}
+
+// families/{familyId} — familyId == owner's uid
+match /families/{familyId} {
+  allow read: if request.auth != null &&
+    (request.auth.uid == resource.data.ownerId || request.auth.uid in resource.data.memberIds);
+  allow create: if request.auth != null && request.auth.uid == familyId;
+  allow update: if request.auth != null;
+}
+
+// family_invites/{inviteId}
+match /family_invites/{inviteId} {
+  allow read: if request.auth != null &&
+    (request.auth.uid == resource.data.invitedByUserId || request.auth.uid == resource.data.memberUserId);
+  allow create: if request.auth != null && request.auth.uid == request.resource.data.invitedByUserId;
+  allow update: if request.auth != null;
+}
+
+// users/{uid} — existing rule should already allow the owner to update their
+// own document. Make sure referralCode/referredBy/familyId aren't excluded by
+// any field allow-list you may have, and that OTHER users can read referralCode
+// (needed by getReferralsByReferrer / redeemReferralCode lookups by code):
+match /users/{uid} {
+  allow read: if request.auth != null;
+  allow update: if request.auth != null && request.auth.uid == uid;
+}

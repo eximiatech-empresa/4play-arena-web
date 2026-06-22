@@ -8,5 +8,6 @@ export const PlanConfigSchema = z.object({
   priceInCents: z.number().int().positive(),
   playValue: z.number().positive(),
   popular: z.boolean().optional(),
+  subtitle: z.string().optional(),
 })
 export type PlanConfig = z.infer<typeof PlanConfigSchema>

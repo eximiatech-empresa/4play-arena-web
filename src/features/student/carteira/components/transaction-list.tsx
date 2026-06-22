@@ -16,6 +16,7 @@ interface TransactionListProps {
 }
 
 function getTransactionDescription(tx: Transaction, plan: Plan): string {
+  if (tx.note) return tx.note
   if (tx.type === "credit" || tx.type === "purchase") {
     const planLabel = plan.charAt(0).toUpperCase() + plan.slice(1)
     return `Recarga - Plano ${planLabel}`

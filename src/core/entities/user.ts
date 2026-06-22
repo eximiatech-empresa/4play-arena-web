@@ -47,6 +47,12 @@ export const StudentUserSchema = BaseUserSchema.extend({
     (val) => typeof val === "number" && Number.isNaN(val) ? undefined : val,
     z.number().positive().optional()
   ),
+  /** Unique code this student shares to invite friends (e.g. "4PLAY-X7A9B"). */
+  referralCode: z.string().optional().default(""),
+  /** uid of the referrer whose code was redeemed at signup, if any. */
+  referredBy: z.string().nullable().optional().default(null),
+  /** id of the `families` document this student belongs to, if any. */
+  familyId: z.string().nullable().optional().default(null),
 })
 export type StudentUser = z.infer<typeof StudentUserSchema>
 

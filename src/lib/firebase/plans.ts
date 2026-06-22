@@ -4,11 +4,23 @@ import { db } from "./firestore"
 
 export type { PlanConfig }
 
+// The app mobile (irmão) writes `plans` docs with `price` in reais instead of
+// `priceInCents`. Normalize before validating so both shapes are accepted
+// without rewriting the shared Firestore data.
+function normalizePlanDoc(docId: string, raw: Record<string, unknown>) {
+  const hasPriceInCents = typeof raw.priceInCents === "number"
+  return {
+    ...raw,
+    id: typeof raw.id === "string" ? raw.id : docId,
+    priceInCents: hasPriceInCents ? raw.priceInCents : Math.round((raw.price as number) * 100),
+  }
+}
+
 export async function getPlans(): Promise<PlanConfig[]> {
   const snap = await getDocs(collection(db, "plans"))
   return snap.docs
     .flatMap((d) => {
-      const result = PlanConfigSchema.safeParse({ id: d.id, ...d.data() })
+      const result = PlanConfigSchema.safeParse(normalizePlanDoc(d.id, d.data()))
       return result.success ? [result.data] : []
     })
     .sort((a, b) => a.validityDays - b.validityDays)

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Sidebar } from "./sidebar"
 import { LoadingScreen } from "@/components/shared/loading-screen"
 import { NotificationsWatcher } from "@/components/shared/notifications-watcher"
+import { ReferralBonusModal } from "@/components/shared/referral-bonus-modal"
 import { useCurrentUser } from "@/hooks/use-current-user"
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -28,6 +29,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <NotificationsWatcher />
+      <ReferralBonusModal />
       <Sidebar />
       <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
         {children}
