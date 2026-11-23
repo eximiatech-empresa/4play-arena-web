@@ -81,10 +81,10 @@ export const MENU_CONFIG: NavItemConfig[] = [
     roles: ["TEACHER"],
   },
   {
-    label: "Minha Turma",
+    label: "Gestão de Turmas",
     href: "/gestao-turma",
     icon: UsersRound,
-    roles: ["TEACHER"],
+    roles: ["TEACHER", "ADMIN"],
   },
   {
     label: "Níveis",

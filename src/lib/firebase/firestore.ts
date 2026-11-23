@@ -9,8 +9,10 @@ import {
   where,
   getDocs,
   writeBatch,
+  runTransaction,
 } from "firebase/firestore"
 import { firebaseApp } from "./app"
+import { STUDENT_LEVELS } from "@/core/constants/professors"
 import type { User, StudentUser, TeacherUser, UserRole, UserListItem } from "@/core/entities/user"
 import { UserSchema, UserSummarySchema } from "@/core/entities/user"
 
@@ -117,7 +119,8 @@ export async function updateStudentLevel(
   studentName: string,
 ): Promise<void> {
   const batch = writeBatch(db)
-  batch.update(doc(db, "users", studentId), { level: newLevel })
+  const levelIndex = Math.max(0, STUDENT_LEVELS.indexOf(newLevel as (typeof STUDENT_LEVELS)[number]))
+  batch.update(doc(db, "users", studentId), { level: newLevel, levelIndex })
   const logRef = doc(collection(db, "audit_logs"))
   batch.set(logRef, {
     id: logRef.id,
@@ -133,57 +136,103 @@ export async function updateStudentLevel(
   await batch.commit()
 }
 
+const DEFAULT_PLAY_VALUE_BY_PLAN: Record<string, number> = {
+  mensal: 5.125,
+  trimestral: 4.75,
+  semestral: 4.3125,
+}
+
 export async function adjustStudentWallet({
   studentId,
+  studentName,
   plays,
-  currentBalance,
   note,
   planId,
   renewDays,
+  actorId,
+  actorName,
 }: {
   studentId: string
+  studentName?: string
   plays: number
-  currentBalance: number
+  currentBalance?: number
   note: string
   planId?: string
   renewDays?: number
+  actorId?: string
+  actorName?: string
 }): Promise<void> {
-  const batch = writeBatch(db)
-  const newBalance = Math.max(0, currentBalance + plays)
+  const userRef = doc(db, "users", studentId)
+  const planRef = planId && planId !== "none" ? doc(db, "plans", planId) : null
 
-  const userUpdates: Record<string, unknown> = {
-    walletBalance: newBalance,
-  }
+  await runTransaction(db, async (tx) => {
+    const userSnap = await tx.get(userRef)
+    if (!userSnap.exists()) {
+      throw new Error("Aluno não encontrado.")
+    }
+    const planSnap = planRef ? await tx.get(planRef) : null
 
-  if (planId && planId !== "none") {
-    userUpdates.currentPlanId = planId
-  }
+    const before = Number(userSnap.data()?.walletBalance ?? 0) || 0
+    const newBalance = Math.max(0, before + plays)
 
-  if (renewDays && renewDays > 0) {
-    const expiry = new Date()
-    expiry.setDate(expiry.getDate() + renewDays)
-    userUpdates.planExpiresAt = expiry.toISOString()
-  }
+    const userUpdates: Record<string, unknown> = {
+      walletBalance: newBalance,
+      updatedAt: new Date().toISOString(),
+    }
 
-  batch.update(doc(db, "users", studentId), userUpdates)
+    if (planId && planId !== "none") {
+      userUpdates.currentPlanId = planId
+      const planPlayValue =
+        (planSnap?.exists() ? Number(planSnap.data()?.playValue) : NaN) ||
+        DEFAULT_PLAY_VALUE_BY_PLAN[planId] ||
+        5.125
+      userUpdates.planPlayValue = planPlayValue
+    }
 
-  const txRef = doc(collection(db, "transactions"))
-  batch.set(txRef, {
-    id: txRef.id,
-    walletId: studentId,
-    studentId: studentId,
-    lessonId: null,
-    type: "adjustment",
-    amount: plays,
-    balanceAfter: newBalance,
-    professorName: null,
-    classLevel: null,
-    isPeak: null,
-    note: note.trim() || "Ajuste manual de saldo",
-    createdAt: new Date().toISOString(),
+    if (renewDays && renewDays > 0) {
+      const expiry = new Date()
+      expiry.setDate(expiry.getDate() + renewDays)
+      userUpdates.planExpiresAt = expiry.toISOString()
+    }
+
+    tx.update(userRef, userUpdates)
+
+    const nowIso = new Date().toISOString()
+    const txRef = doc(collection(db, "transactions"))
+    tx.set(txRef, {
+      id: txRef.id,
+      walletId: studentId,
+      studentId,
+      lessonId: null,
+      type: "adjustment",
+      amount: plays,
+      balanceAfter: newBalance,
+      professorName: null,
+      classLevel: null,
+      isPeak: null,
+      note: note.trim() || "Ajuste manual de saldo",
+      createdAt: nowIso,
+    })
+
+    const auditRef = doc(collection(db, "audit_logs"))
+    tx.set(auditRef, {
+      id: auditRef.id,
+      type: "wallet_adjustment",
+      actorId: actorId ?? "",
+      actorName: actorName ?? "",
+      targetId: studentId,
+      targetName: studentName ?? String(userSnap.data()?.name ?? ""),
+      previousValue: before,
+      newValue: newBalance,
+      metadata: {
+        playsDelta: plays,
+        note: note.trim(),
+        ...(planId && planId !== "none" ? { planId } : {}),
+        ...(renewDays && renewDays > 0 ? { renewDays } : {}),
+      },
+      createdAt: nowIso,
+    })
   })
-
-  await batch.commit()
 }
 
 export async function getStudentsForAlerts(): Promise<UserListItem[]> {

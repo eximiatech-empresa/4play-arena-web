@@ -1,6 +1,8 @@
 "use client"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { getAllUsers, updateUserActiveStatus, updateTeacherLessonPrice, updateUserRole, updateStudentLevel, adjustStudentWallet } from "@/lib/firebase/firestore"
+import { getFirebaseAuth } from "@/lib/firebase/auth"
+import { getStudentTransactions } from "@/lib/firebase/transactions"
 import { createStaffUser, type CreateStaffUserInput } from "@/app/actions/create-staff-user"
 
 const QUERY_KEY = ["users"] as const
@@ -18,7 +20,11 @@ export function useUsers() {
 export function useCreateUser() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: CreateStaffUserInput) => createStaffUser(input),
+    mutationFn: async (input: CreateStaffUserInput) => {
+      const idToken = await getFirebaseAuth().currentUser?.getIdToken()
+      if (!idToken) throw new Error("Sessão expirada. Faça login novamente.")
+      return createStaffUser({ ...input, idToken })
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY })
     },
@@ -82,20 +88,36 @@ export function useUpdateStudentLevel() {
   })
 }
 
+export function useStudentTransactions(studentId: string | null) {
+  return useQuery({
+    queryKey: ["student-transactions", studentId] as const,
+    queryFn: () => getStudentTransactions(studentId!),
+    enabled: !!studentId,
+    staleTime: 30 * 1000,
+  })
+}
+
 export function useAdjustStudentWallet() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (input: {
       studentId: string
+      studentName?: string
       plays: number
-      currentBalance: number
+      currentBalance?: number
       note: string
       planId?: string
       renewDays?: number
+      actorId?: string
+      actorName?: string
     }) => adjustStudentWallet(input),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEY })
       queryClient.invalidateQueries({ queryKey: ["wallet"] })
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] })
+      queryClient.invalidateQueries({
+        queryKey: ["student-transactions", variables.studentId],
+      })
     },
   })
 }

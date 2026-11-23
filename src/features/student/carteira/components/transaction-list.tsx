@@ -93,7 +93,11 @@ export function TransactionList({ transactions, plan }: TransactionListProps) {
 }
 
 function TransactionRow({ transaction: tx, plan }: { transaction: Transaction; plan: Plan }) {
-  const isCredit = tx.type === "credit" || tx.type === "purchase" || tx.type === "package"
+  const isCredit =
+    tx.type === "credit" ||
+    tx.type === "purchase" ||
+    tx.type === "package" ||
+    (tx.type === "adjustment" && tx.amount > 0)
 
   return (
     <div className="px-6 py-3.5 flex items-center gap-4">

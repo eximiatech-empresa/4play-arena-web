@@ -108,7 +108,8 @@ export function WalletPageContent() {
       </div>
 
       <MetricCards metrics={metrics} totalPlays={wallet.totalPlays} />
-      <RechargeSection />
+      {/* Pagamento in-app desativado: recargas e creditos sao lancados pela gestao */}
+      <RechargeSection readOnly />
       <TransactionList transactions={wallet.transactions} plan={wallet.plan} />
     </div>
   )

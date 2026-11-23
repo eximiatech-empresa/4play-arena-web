@@ -34,11 +34,12 @@ import {
   useUpdateUserRole,
   useUpdateStudentLevel,
   useAdjustStudentWallet,
+  useStudentTransactions,
   type UserListItem,
 } from "../hooks/use-users";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { STUDENT_LEVELS } from "@/core/constants/professors";
-import { formatCurrency } from "@/utils/formatters";
+import { formatCurrency, formatDateTimeBR } from "@/utils/formatters";
 import { cn } from "@/lib/utils";
 import {
   Select,
@@ -74,6 +75,10 @@ export function UserDetailsModal({
     useUpdateStudentLevel();
   const { mutate: adjustWallet, isPending: isAdjustingWallet } =
     useAdjustStudentWallet();
+  const { data: studentTransactions, isLoading: isLoadingTxs } =
+    useStudentTransactions(
+      open && user?.role === "STUDENT" ? user.uid : null,
+    );
 
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState("");
@@ -203,11 +208,14 @@ export function UserDetailsModal({
     adjustWallet(
       {
         studentId: user!.uid,
+        studentName: user!.name,
         plays,
         currentBalance,
         note: adjustNote.trim() || (adjustType === "credit" ? "Crédito manual de Plays" : "Débito manual de Plays"),
         planId: adjustPlan !== "none" ? adjustPlan : undefined,
         renewDays: parseInt(adjustRenewDays, 10) || 0,
+        actorId: currentUser?.uid,
+        actorName: currentUser?.name,
       },
       {
         onSuccess: () => {
@@ -630,14 +638,62 @@ export function UserDetailsModal({
             </div>
           )}
 
-          <div className="space-y-3">
-            <p className="text-sm font-bold text-zinc-800 flex items-center gap-2">
-              <History className="w-4 h-4" /> Últimas Atividades
-            </p>
-            <div className="text-xs text-zinc-500 italic py-2">
-              Nenhuma atividade recente registrada para este usuário.
+          {user.role === "STUDENT" && (
+            <div className="space-y-2.5">
+              <p className="text-sm font-bold text-zinc-800 flex items-center gap-2">
+                <History className="w-4 h-4" /> Últimas Movimentações de Plays
+              </p>
+              {isLoadingTxs ? (
+                <div className="flex items-center gap-2 text-xs text-zinc-400 py-2">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Carregando extrato...
+                </div>
+              ) : studentTransactions && studentTransactions.length > 0 ? (
+                <div className="max-h-40 overflow-y-auto divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-zinc-50/50">
+                  {studentTransactions.slice(0, 8).map((tx) => {
+                    const isCredit =
+                      tx.type === "credit" ||
+                      tx.type === "purchase" ||
+                      tx.type === "package" ||
+                      (tx.type === "adjustment" && tx.amount > 0);
+                    return (
+                      <div
+                        key={tx.id}
+                        className="px-3 py-2 flex items-center justify-between gap-2 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium text-zinc-800 truncate">
+                            {tx.note ||
+                              (tx.type === "adjustment"
+                                ? "Ajuste administrativo"
+                                : tx.type === "debit" && tx.professorName
+                                  ? `Aula com ${tx.professorName}`
+                                  : tx.type)}
+                          </p>
+                          <p className="text-[10px] text-zinc-400">
+                            {formatDateTimeBR(tx.createdAt)}
+                          </p>
+                        </div>
+                        <span
+                          className={cn(
+                            "font-bold tabular-nums shrink-0",
+                            isCredit ? "text-emerald-600" : "text-red-500",
+                          )}
+                        >
+                          {isCredit ? "+" : "-"}
+                          {Math.abs(tx.amount)} P
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-xs text-zinc-500 italic py-2">
+                  Nenhuma movimentação registrada para este aluno.
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
           <div className="flex gap-3 pt-2">
             <Button

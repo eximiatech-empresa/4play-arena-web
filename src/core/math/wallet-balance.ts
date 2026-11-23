@@ -15,7 +15,13 @@ export function calculateTotalPlays(
 ): number {
   return (
     transactions
-      .filter((t) => t.type === "purchase" || t.type === "credit")
+      .filter(
+        (t) =>
+          t.type === "purchase" ||
+          t.type === "credit" ||
+          t.type === "package" ||
+          (t.type === "adjustment" && t.amount > 0),
+      )
       .reduce((sum, t) => sum + t.amount, 0) ||
     defaultTotalPlays
   )

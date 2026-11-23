@@ -5,8 +5,7 @@ import { db } from "./firestore"
 export type { PlanConfig }
 
 // The app mobile (irmão) writes `plans` docs with `price` in reais instead of
-// `priceInCents`. Normalize before validating so both shapes are accepted
-// without rewriting the shared Firestore data.
+// `priceInCents`. Normalize on read AND persist both on write so mobile and web stay aligned.
 function normalizePlanDoc(docId: string, raw: Record<string, unknown>) {
   const hasPriceInCents = typeof raw.priceInCents === "number"
   return {
@@ -27,11 +26,18 @@ export async function getPlans(): Promise<PlanConfig[]> {
 }
 
 export async function createPlan(plan: PlanConfig): Promise<void> {
-  await setDoc(doc(db, "plans", plan.id), plan)
+  await setDoc(doc(db, "plans", plan.id), {
+    ...plan,
+    price: +(plan.priceInCents / 100).toFixed(2),
+  })
 }
 
 export async function updatePlan(id: string, data: Partial<PlanConfig>): Promise<void> {
-  await updateDoc(doc(db, "plans", id), data as Record<string, unknown>)
+  const payload: Record<string, unknown> = { ...data }
+  if (typeof data.priceInCents === "number") {
+    payload.price = +(data.priceInCents / 100).toFixed(2)
+  }
+  await updateDoc(doc(db, "plans", id), payload)
 }
 
 export async function deletePlan(id: string): Promise<void> {

@@ -4,13 +4,14 @@ import {
   collection,
   doc,
   getDocs,
-  deleteDoc,
   query,
   where,
   orderBy,
   writeBatch,
 } from "firebase/firestore"
-import { db } from "./firestore" // Ajuste o caminho se necessário (ex: "@/lib/firebase/config")
+import { getFunctions, httpsCallable } from "firebase/functions"
+import { firebaseApp } from "./app"
+import { db } from "./firestore"
 import { LessonDocumentSchema } from "@/core/entities/lesson"
 import type { LessonDocument, CreateLessonInput } from "@/core/entities/lesson"
 import { buildDateList } from "@/core/usecases/lessons/create-lesson"
@@ -107,6 +108,12 @@ export async function createBulkLessons(input: CreateLessonInput): Promise<numbe
   return dates.length
 }
 
+/**
+ * Cancela a aula via Cloud Function `cancelLesson` (southamerica-east1),
+ * garantindo estorno atomico de Plays aos alunos, auditoria e push FCM.
+ */
 export async function deleteLesson(lessonId: string): Promise<void> {
-  await deleteDoc(doc(db, "lessons", lessonId))
+  const functions = getFunctions(firebaseApp, "southamerica-east1")
+  const cancelLessonFn = httpsCallable(functions, "cancelLesson")
+  await cancelLessonFn({ lessonId, reason: "Cancelada pelo administrador" })
 }
