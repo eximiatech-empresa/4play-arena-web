@@ -74,57 +74,49 @@ describe('calculatePlaysConsumed', () => {
   // ── Biel (basePlays=13, roundingRule=round) ──────────────────────────────────
 
   it('Biel / titular / off-peak: 13 × 1 × 1 = 13 → round → 13', () => {
-    expect(calculatePlaysConsumed({ professorId: 'biel', isPeak: false, isReserva: false })).toBe(13)
+    expect(calculatePlaysConsumed({ basePlays: 13, roundingRule: 'round', isPeak: false, isReserva: false })).toBe(13)
   })
 
   it('Biel / titular / pico: 13 × 1.05 = 13.65 → round → 14', () => {
-    expect(calculatePlaysConsumed({ professorId: 'biel', isPeak: true, isReserva: false })).toBe(14)
+    expect(calculatePlaysConsumed({ basePlays: 13, roundingRule: 'round', isPeak: true, isReserva: false })).toBe(14)
   })
 
   it('Biel / reserva / pico: 13 × 1.05 × 1.10 = 15.015 → round → 15', () => {
-    expect(calculatePlaysConsumed({ professorId: 'biel', isPeak: true, isReserva: true })).toBe(15)
+    expect(calculatePlaysConsumed({ basePlays: 13, roundingRule: 'round', isPeak: true, isReserva: true })).toBe(15)
   })
 
   it('Biel / reserva / off-peak: 13 × 1.10 = 14.30 → round → 14', () => {
-    expect(calculatePlaysConsumed({ professorId: 'biel', isPeak: false, isReserva: true })).toBe(14)
+    expect(calculatePlaysConsumed({ basePlays: 13, roundingRule: 'round', isPeak: false, isReserva: true })).toBe(14)
   })
 
   // ── Marília (basePlays=16, roundingRule=ceil) ────────────────────────────────
 
   it('Marília / reserva / off-peak: 16 × 1.10 = 17.6 → ceil → 18', () => {
-    expect(calculatePlaysConsumed({ professorId: 'marilia', isPeak: false, isReserva: true })).toBe(18)
+    expect(calculatePlaysConsumed({ basePlays: 16, roundingRule: 'ceil', isPeak: false, isReserva: true })).toBe(18)
   })
 
   it('Marília / titular / pico: 16 × 1.05 = 16.8 → ceil → 17', () => {
-    expect(calculatePlaysConsumed({ professorId: 'marilia', isPeak: true, isReserva: false })).toBe(17)
+    expect(calculatePlaysConsumed({ basePlays: 16, roundingRule: 'ceil', isPeak: true, isReserva: false })).toBe(17)
   })
 
   it('Marília / titular / off-peak: 16 → ceil → 16', () => {
-    expect(calculatePlaysConsumed({ professorId: 'marilia', isPeak: false, isReserva: false })).toBe(16)
+    expect(calculatePlaysConsumed({ basePlays: 16, roundingRule: 'ceil', isPeak: false, isReserva: false })).toBe(16)
   })
 
   // ── Paulinho (basePlays=10, roundingRule=round) ──────────────────────────────
 
   it('Paulinho / titular / off-peak: 10 → round → 10', () => {
-    expect(calculatePlaysConsumed({ professorId: 'paulinho', isPeak: false, isReserva: false })).toBe(10)
+    expect(calculatePlaysConsumed({ basePlays: 10, roundingRule: 'round', isPeak: false, isReserva: false })).toBe(10)
   })
 
   it('Paulinho / reserva / pico: 10 × 1.05 × 1.10 = 11.55 → round → 12', () => {
-    expect(calculatePlaysConsumed({ professorId: 'paulinho', isPeak: true, isReserva: true })).toBe(12)
+    expect(calculatePlaysConsumed({ basePlays: 10, roundingRule: 'round', isPeak: true, isReserva: true })).toBe(12)
   })
 
   // ── Pepe (basePlays=13, roundingRule=round) ──────────────────────────────────
 
   it('Pepe / titular / pico: 13 × 1.05 = 13.65 → round → 14', () => {
-    expect(calculatePlaysConsumed({ professorId: 'pepe', isPeak: true, isReserva: false })).toBe(14)
-  })
-
-  // ── Erro ─────────────────────────────────────────────────────────────────────
-
-  it('deve lançar ProfessorNotFoundError para professorId inexistente', () => {
-    expect(() =>
-      calculatePlaysConsumed({ professorId: 'professor-inexistente', isPeak: false, isReserva: false })
-    ).toThrow(ProfessorNotFoundError)
+    expect(calculatePlaysConsumed({ basePlays: 13, roundingRule: 'round', isPeak: true, isReserva: false })).toBe(14)
   })
 })
 

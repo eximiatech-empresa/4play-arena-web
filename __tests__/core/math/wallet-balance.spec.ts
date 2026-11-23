@@ -35,26 +35,26 @@ describe('calculateTotalPlays', () => {
     ]
 
     // Act
-    const resultado = calculateTotalPlays(transacoes, 'trimestral')
+    const resultado = calculateTotalPlays(transacoes, 240)
 
     // Assert
     expect(resultado).toBe(250) // 240 + 10
   })
 
   it('deve usar o fallback do plano trimestral (240 Plays) quando não há transações', () => {
-    const resultado = calculateTotalPlays([], 'trimestral')
+    const resultado = calculateTotalPlays([], 240)
 
     expect(resultado).toBe(240)
   })
 
   it('deve usar o fallback do plano mensal (80 Plays) quando não há transações', () => {
-    const resultado = calculateTotalPlays([], 'mensal')
+    const resultado = calculateTotalPlays([], 80)
 
     expect(resultado).toBe(80)
   })
 
   it('deve usar o fallback do plano semestral (480 Plays) quando não há transações', () => {
-    const resultado = calculateTotalPlays([], 'semestral')
+    const resultado = calculateTotalPlays([], 480)
 
     expect(resultado).toBe(480)
   })
@@ -68,7 +68,7 @@ describe('calculateTotalPlays', () => {
     ]
 
     // Act — plano trimestral: 240 Plays
-    const resultado = calculateTotalPlays(transacoes, 'trimestral')
+    const resultado = calculateTotalPlays(transacoes, 240)
 
     // Assert
     expect(resultado).toBe(240)
