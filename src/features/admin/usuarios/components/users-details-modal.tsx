@@ -23,17 +23,23 @@ import {
   Pencil,
   Check,
   X,
+  Plus,
+  Minus,
+  Coins,
+  Loader2,
 } from "lucide-react";
 import {
   useSetUserStatus,
   useUpdateLessonPrice,
   useUpdateUserRole,
   useUpdateStudentLevel,
+  useAdjustStudentWallet,
   type UserListItem,
 } from "../hooks/use-users";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { STUDENT_LEVELS } from "@/core/constants/professors";
 import { formatCurrency } from "@/utils/formatters";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -66,6 +72,8 @@ export function UserDetailsModal({
   const { mutate: updateRole, isPending: isSavingRole } = useUpdateUserRole();
   const { mutate: updateLevel, isPending: isSavingLevel } =
     useUpdateStudentLevel();
+  const { mutate: adjustWallet, isPending: isAdjustingWallet } =
+    useAdjustStudentWallet();
 
   const [editingPrice, setEditingPrice] = useState(false);
   const [priceInput, setPriceInput] = useState("");
@@ -75,6 +83,13 @@ export function UserDetailsModal({
 
   const [editingLevel, setEditingLevel] = useState(false);
   const [levelInput, setLevelInput] = useState("");
+
+  const [adjustingWallet, setAdjustingWallet] = useState(false);
+  const [adjustType, setAdjustType] = useState<"credit" | "debit">("credit");
+  const [adjustAmount, setAdjustAmount] = useState("");
+  const [adjustNote, setAdjustNote] = useState("");
+  const [adjustPlan, setAdjustPlan] = useState("none");
+  const [adjustRenewDays, setAdjustRenewDays] = useState("0");
 
   if (!user) return null;
 
@@ -174,6 +189,48 @@ export function UserDetailsModal({
         onError: () => toast.error("Erro ao atualizar o nível."),
       },
     );
+  }
+
+  function handleSaveAdjustment() {
+    const amountNum = parseFloat(adjustAmount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error("Informe uma quantidade válida de Plays (maior que 0).");
+      return;
+    }
+    const plays = adjustType === "credit" ? amountNum : -amountNum;
+    const currentBalance = user?.walletBalance ?? 0;
+
+    adjustWallet(
+      {
+        studentId: user!.uid,
+        plays,
+        currentBalance,
+        note: adjustNote.trim() || (adjustType === "credit" ? "Crédito manual de Plays" : "Débito manual de Plays"),
+        planId: adjustPlan !== "none" ? adjustPlan : undefined,
+        renewDays: parseInt(adjustRenewDays, 10) || 0,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Saldo de Plays ajustado com sucesso!");
+          setAdjustingWallet(false);
+          setAdjustAmount("");
+          setAdjustNote("");
+          setAdjustPlan("none");
+          setAdjustRenewDays("0");
+        },
+        onError: () => {
+          toast.error("Erro ao ajustar o saldo de Plays.");
+        },
+      },
+    );
+  }
+
+  function handleCancelAdjustment() {
+    setAdjustingWallet(false);
+    setAdjustAmount("");
+    setAdjustNote("");
+    setAdjustPlan("none");
+    setAdjustRenewDays("0");
   }
 
   return (
@@ -335,17 +392,165 @@ export function UserDetailsModal({
           </div>
 
           {user.role === "STUDENT" && (
-            <div className="p-4 rounded-xl bg-brand-subtle/30 border border-brand/10 flex items-center gap-3">
-              <Wallet className="w-5 h-5 text-brand-dark" />
-              <div>
-                <p className="text-[.8em] font-extrabold text-brand-dark/70 uppercase">
-                  Saldo Atual
-                </p>
-                <p className="text-xl font-bold text-brand-dark">
-                  {user.walletBalance ?? 0}{" "}
-                  <span className="text-sm font-normal">Plays</span>
-                </p>
+            <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-brand-subtle flex items-center justify-center text-brand-dark">
+                    <Wallet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                      Saldo de Carteira
+                    </p>
+                    <p className="text-xl font-bold text-zinc-900">
+                      {user.walletBalance ?? 0}{" "}
+                      <span className="text-sm font-normal text-zinc-500">Plays</span>
+                    </p>
+                  </div>
+                </div>
+
+                {!adjustingWallet && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setAdjustingWallet(true)}
+                    className="gap-1.5 text-xs font-semibold h-8 border-brand/30 text-brand-dark hover:bg-brand-subtle/50"
+                  >
+                    <Coins className="w-3.5 h-3.5" />
+                    Lançar / Ajustar
+                  </Button>
+                )}
               </div>
+
+              {adjustingWallet && (
+                <div className="mt-3 pt-3 border-t border-zinc-200/80 space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-zinc-700">Lançamento Manual de Plays</span>
+                    <div className="flex items-center gap-1 bg-zinc-200/60 p-0.5 rounded-lg">
+                      <button
+                        type="button"
+                        onClick={() => setAdjustType("credit")}
+                        className={cn(
+                          "px-2 py-0.5 text-xs font-medium rounded-md transition-colors",
+                          adjustType === "credit"
+                            ? "bg-white text-emerald-700 shadow-sm"
+                            : "text-zinc-600 hover:text-zinc-900",
+                        )}
+                      >
+                        + Adicionar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAdjustType("debit")}
+                        className={cn(
+                          "px-2 py-0.5 text-xs font-medium rounded-md transition-colors",
+                          adjustType === "debit"
+                            ? "bg-white text-red-700 shadow-sm"
+                            : "text-zinc-600 hover:text-zinc-900",
+                        )}
+                      >
+                        - Deduzir
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-zinc-500">
+                        Plays {adjustType === "credit" ? "(Crédito)" : "(Débito)"}
+                      </label>
+                      <Input
+                        type="number"
+                        min={0.5}
+                        step={0.5}
+                        placeholder="Ex: 80"
+                        value={adjustAmount}
+                        onChange={(e) => setAdjustAmount(e.target.value)}
+                        className="h-8 text-sm mt-0.5 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] uppercase font-bold text-zinc-500">
+                        Plano (Opcional)
+                      </label>
+                      <Select value={adjustPlan} onValueChange={setAdjustPlan}>
+                        <SelectTrigger className="h-8 text-xs mt-0.5 bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Não alterar plano</SelectItem>
+                          <SelectItem value="mensal">Mensal (80 Plays)</SelectItem>
+                          <SelectItem value="trimestral">Trimestral (240 Plays)</SelectItem>
+                          <SelectItem value="semestral">Semestral (480 Plays)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-zinc-500">
+                      Motivo / Observação
+                    </label>
+                    <Input
+                      type="text"
+                      placeholder="Ex: Pagamento confirmado via NF #1234 / PIX externo"
+                      value={adjustNote}
+                      onChange={(e) => setAdjustNote(e.target.value)}
+                      className="h-8 text-sm mt-0.5 bg-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-zinc-500">
+                      Renovar Validade
+                    </label>
+                    <Select value={adjustRenewDays} onValueChange={setAdjustRenewDays}>
+                      <SelectTrigger className="h-8 text-xs mt-0.5 bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">Manter validade atual</SelectItem>
+                        <SelectItem value="30">+30 dias (Mensal)</SelectItem>
+                        <SelectItem value="90">+90 dias (Trimestral)</SelectItem>
+                        <SelectItem value="180">+180 dias (Semestral)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleCancelAdjustment}
+                      disabled={isAdjustingWallet}
+                      className="h-7 text-xs"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleSaveAdjustment}
+                      disabled={isAdjustingWallet}
+                      className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                    >
+                      {isAdjustingWallet ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-3 h-3" />
+                          Confirmar Lançamento
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

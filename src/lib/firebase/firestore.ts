@@ -133,6 +133,59 @@ export async function updateStudentLevel(
   await batch.commit()
 }
 
+export async function adjustStudentWallet({
+  studentId,
+  plays,
+  currentBalance,
+  note,
+  planId,
+  renewDays,
+}: {
+  studentId: string
+  plays: number
+  currentBalance: number
+  note: string
+  planId?: string
+  renewDays?: number
+}): Promise<void> {
+  const batch = writeBatch(db)
+  const newBalance = Math.max(0, currentBalance + plays)
+
+  const userUpdates: Record<string, unknown> = {
+    walletBalance: newBalance,
+  }
+
+  if (planId && planId !== "none") {
+    userUpdates.currentPlanId = planId
+  }
+
+  if (renewDays && renewDays > 0) {
+    const expiry = new Date()
+    expiry.setDate(expiry.getDate() + renewDays)
+    userUpdates.planExpiresAt = expiry.toISOString()
+  }
+
+  batch.update(doc(db, "users", studentId), userUpdates)
+
+  const txRef = doc(collection(db, "transactions"))
+  batch.set(txRef, {
+    id: txRef.id,
+    walletId: studentId,
+    studentId: studentId,
+    lessonId: null,
+    type: "adjustment",
+    amount: plays,
+    balanceAfter: newBalance,
+    professorName: null,
+    classLevel: null,
+    isPeak: null,
+    note: note.trim() || "Ajuste manual de saldo",
+    createdAt: new Date().toISOString(),
+  })
+
+  await batch.commit()
+}
+
 export async function getStudentsForAlerts(): Promise<UserListItem[]> {
   const snap = await getDocs(
     query(collection(db, "users"), where("role", "==", "STUDENT")),
