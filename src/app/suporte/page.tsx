@@ -4,7 +4,7 @@ import Link from "next/link"
 export const metadata: Metadata = {
   title: "Suporte | 4Play Arena",
   description:
-    "Central de ajuda e contato de suporte para os aplicativos 4Play Arena e 4Play Gestão.",
+    "Central de ajuda e contato de suporte para os aplicativos 4Play Arena e 4Play Arena Gestão.",
 }
 
 export default function SuportePage() {
@@ -18,7 +18,7 @@ export default function SuportePage() {
           <h1 className="text-3xl font-bold tracking-tight">Como podemos ajudar?</h1>
           <p className="text-sm text-zinc-600">
             Atendimento técnico para alunos, professores e administradores dos aplicativos{" "}
-            <strong>4Play Arena</strong> e <strong>4Play Gestão</strong>.
+            <strong>4Play Arena Aluno</strong> e <strong>4Play Arena Gestão</strong>.
           </p>
         </header>
 
@@ -28,10 +28,10 @@ export default function SuportePage() {
               E-mail de Suporte
             </h2>
             <a
-              href="mailto:suporte@eximiatech.com.br"
+              href="mailto:guilherme.queiroz@eximiatech.com.br"
               className="text-base font-semibold text-orange-600 hover:underline block"
             >
-              suporte@eximiatech.com.br
+              guilherme.queiroz@eximiatech.com.br
             </a>
             <p className="text-xs text-zinc-500">
               Tempo médio de resposta: até 1 dia útil (segunda a sexta, 9h às 18h BRT).

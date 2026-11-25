@@ -59,7 +59,7 @@ export default function ExcluirContaPage() {
           <h1 className="text-2xl font-bold tracking-tight">Excluir minha conta</h1>
           <p className="text-sm text-zinc-600">
             Esta ação é permanente e remove seu acesso, foto de perfil e dados cadastrais nos
-            aplicativos <strong>4Play Arena</strong> e <strong>4Play Gestão</strong>.
+            aplicativos <strong>4Play Arena Aluno</strong> e <strong>4Play Arena Gestão</strong>.
           </p>
         </header>
 
@@ -134,10 +134,10 @@ export default function ExcluirContaPage() {
 
         <p className="text-xs text-zinc-500">
           Caso não consiga acessar sua conta, envie uma solicitação para{" "}
-          <a href="mailto:suporte@eximiatech.com.br" className="text-orange-600 underline">
-            suporte@eximiatech.com.br
+          <a href="mailto:guilherme.queiroz@eximiatech.com.br" className="text-orange-600 underline">
+            guilherme.queiroz@eximiatech.com.br
           </a>{" "}
-          informando o e-mail cadastrado.
+          informando o e-mail cadastrado. A exclusão é concluída em até 7 dias e você recebe a confirmação por e-mail.
         </p>
 
         <footer className="pt-4 border-t border-zinc-200 flex flex-wrap gap-4 text-xs text-zinc-500">

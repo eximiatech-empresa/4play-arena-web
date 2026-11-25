@@ -4,7 +4,7 @@ import Link from "next/link"
 export const metadata: Metadata = {
   title: "Política de Privacidade | 4Play Arena",
   description:
-    "Política de Privacidade e proteção de dados pessoais (LGPD) dos aplicativos 4Play Arena e 4Play Gestão.",
+    "Política de Privacidade e proteção de dados pessoais (LGPD) dos aplicativos 4Play Arena e 4Play Arena Gestão.",
 }
 
 export default function PrivacidadePage() {
@@ -24,7 +24,7 @@ export default function PrivacidadePage() {
           <p className="text-sm leading-relaxed text-zinc-700">
             Esta Política de Privacidade descreve como a 4Play Arena e a Exímia Tech coletam,
             utilizam e protegem os dados pessoais dos usuários dos aplicativos móveis{" "}
-            <strong>4Play Arena</strong> (para alunos), <strong>4Play Gestão</strong> (para
+            <strong>4Play Arena Aluno</strong> (para alunos), <strong>4Play Arena Gestão</strong> (para
             professores e administradores) e do painel web de gestão.
           </p>
         </section>
@@ -99,10 +99,10 @@ export default function PrivacidadePage() {
             </Link>{" "}
             ou envie e-mail para{" "}
             <a
-              href="mailto:suporte@eximiatech.com.br"
+              href="mailto:guilherme.queiroz@eximiatech.com.br"
               className="text-orange-600 underline font-medium"
             >
-              suporte@eximiatech.com.br
+              guilherme.queiroz@eximiatech.com.br
             </a>
             .
           </p>

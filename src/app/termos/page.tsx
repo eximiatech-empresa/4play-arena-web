@@ -3,7 +3,7 @@ import Link from "next/link"
 
 export const metadata: Metadata = {
   title: "Termos de Uso | 4Play Arena",
-  description: "Termos e condições de uso dos aplicativos 4Play Arena e 4Play Gestão.",
+  description: "Termos e condições de uso dos aplicativos 4Play Arena e 4Play Arena Gestão.",
 }
 
 export default function TermosPage() {
@@ -21,8 +21,8 @@ export default function TermosPage() {
         <section className="space-y-2">
           <h2 className="text-lg font-semibold">1. Aceitação</h2>
           <p className="text-sm leading-relaxed text-zinc-700">
-            Ao criar uma conta ou utilizar os aplicativos <strong>4Play Arena</strong>,{" "}
-            <strong>4Play Gestão</strong> ou o painel web, você concorda com estes Termos de Uso e
+            Ao criar uma conta ou utilizar os aplicativos <strong>4Play Arena Aluno</strong>,{" "}
+            <strong>4Play Arena Gestão</strong> ou o painel web, você concorda com estes Termos de Uso e
             com nossa{" "}
             <Link href="/privacidade" className="text-orange-600 underline font-medium">
               Política de Privacidade
