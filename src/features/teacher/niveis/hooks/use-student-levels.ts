@@ -7,7 +7,8 @@ import { getStudentAuditLogs } from "@/lib/firebase/audit-logs"
 
 export function useStudents() {
   return useQuery({
-    queryKey: ["users"],
+    // Chave propria: o resultado e filtrado e nao pode sobrescrever o cache de ["users"].
+    queryKey: ["users", "active-students"],
     queryFn: async () => {
       const all = await getAllUsers()
       return all.filter((u) => u.role === "STUDENT" && u.isActive)

@@ -15,6 +15,7 @@ import { firebaseApp } from "./app"
 import { STUDENT_LEVELS } from "@/core/constants/professors"
 import type { User, StudentUser, TeacherUser, UserRole, UserListItem } from "@/core/entities/user"
 import { UserSchema, UserSummarySchema } from "@/core/entities/user"
+import { excludeDemo, isDemoDoc } from "@/core/math/demo-filter"
 
 export type { UserListItem }
 
@@ -40,10 +41,11 @@ export async function getUserDocument(uid: string): Promise<User | null> {
   return result.success ? result.data : null
 }
 
-export async function getTeachers(): Promise<TeacherUser[]> {
+export async function getTeachers(opts?: { includeDemo?: boolean }): Promise<TeacherUser[]> {
   const q = query(collection(db, "users"), where("role", "==", "TEACHER"))
   const snap = await getDocs(q)
   return snap.docs
+    .filter((d) => opts?.includeDemo || !isDemoDoc(d.data()))
     .map((d) => {
       const result = UserSchema.safeParse(d.data())
       return result.success && result.data.role === "TEACHER" ? result.data : null
@@ -51,9 +53,10 @@ export async function getTeachers(): Promise<TeacherUser[]> {
     .filter((u): u is TeacherUser => u !== null)
 }
 
-export async function getAllUsers(): Promise<UserListItem[]> {
+/** Lista todos os usuarios. Contas demo ficam de fora, salvo `includeDemo: true`. */
+export async function getAllUsers(opts?: { includeDemo?: boolean }): Promise<UserListItem[]> {
   const snap = await getDocs(collection(db, "users"))
-  return snap.docs.map((d) => {
+  const users = snap.docs.map((d) => {
     const rawData = { uid: d.id, ...d.data() } as Record<string, unknown>
     const result = UserListItemSchema.safeParse(rawData)
     
@@ -68,6 +71,7 @@ export async function getAllUsers(): Promise<UserListItem[]> {
         isActive: Boolean(rawData.isActive ?? true),
         level: "Iniciante",
         walletBalance: 0,
+        isDemo: isDemoDoc(rawData) || undefined,
       } as UserListItem
     }
     
@@ -76,6 +80,7 @@ export async function getAllUsers(): Promise<UserListItem[]> {
     if (!parsed.uid) parsed.uid = d.id
     return parsed
   })
+  return excludeDemo(users, opts?.includeDemo)
 }
 
 export async function createUserDocument(input: CreateUserInput): Promise<void> {
@@ -241,6 +246,7 @@ export async function getStudentsForAlerts(): Promise<UserListItem[]> {
   )
   return snap.docs.flatMap((d) => {
     const raw = { uid: d.id, ...d.data() } as Record<string, unknown>
+    if (isDemoDoc(raw)) return []
     const result = UserListItemSchema.safeParse(raw)
     if (!result.success) return []
     if (!result.data.uid) result.data.uid = d.id

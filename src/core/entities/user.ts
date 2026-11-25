@@ -16,6 +16,8 @@ const BaseUserSchema = z.object({
   isActive: z.boolean().default(true),
   mustChangePassword: z.boolean().default(false),
   phone: z.string().nullish(),
+  /** Conta demo para revisores das lojas. Ver core/math/demo-filter.ts. */
+  isDemo: z.boolean().optional(),
 })
 
 export const AdminUserSchema = BaseUserSchema.extend({
@@ -75,6 +77,7 @@ export const UserSummarySchema = z.object({
   earningsBalance: z.preprocess((val) => Number(val) || 0, z.number().catch(0)).optional(),
   createdAt: z.preprocess((val) => (val ? String(val) : ""), z.string().catch("")).optional(),
   planExpiresAt: z.string().optional().catch(undefined),
+  isDemo: z.boolean().optional().catch(undefined),
 })
 export type UserSummary = z.infer<typeof UserSummarySchema>
 export type UserListItem = UserSummary

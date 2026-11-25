@@ -16,6 +16,7 @@ import { LessonDocumentSchema } from "@/core/entities/lesson"
 import type { LessonDocument, CreateLessonInput } from "@/core/entities/lesson"
 import { buildDateList } from "@/core/usecases/lessons/create-lesson"
 import { getTeacherClass } from "./teacher-class"
+import { isDemoDoc } from "@/core/math/demo-filter"
 
 export type { CreateLessonInput }
 
@@ -36,6 +37,7 @@ export async function getAdminLessonsByDate(dateStr: string): Promise<LessonDocu
   )
 
   return snap.docs.flatMap((d) => {
+    if (isDemoDoc(d.data())) return []
     const parsed = LessonDocumentSchema.safeParse({ id: d.id, ...d.data() })
     return parsed.success ? [parsed.data] : []
   })
@@ -65,6 +67,7 @@ export async function getAdminLessonsByMonth(
   )
 
   return snap.docs.flatMap((d) => {
+    if (isDemoDoc(d.data())) return []
     const parsed = LessonDocumentSchema.safeParse({ id: d.id, ...d.data() })
     return parsed.success ? [parsed.data] : []
   })

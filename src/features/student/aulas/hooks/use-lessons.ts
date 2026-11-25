@@ -22,12 +22,13 @@ export function useLessons(filters?: LessonFilters, opts?: { enabled?: boolean }
 
   const userId = currentUser?.uid
   const plan: Plan = wallet?.plan ?? "mensal"
+  const includeDemo = currentUser?.isDemo === true
 
   return useQuery({
-    queryKey: [...LESSONS_QUERY_KEY, userId, plan, filters],
+    queryKey: [...LESSONS_QUERY_KEY, userId, plan, filters, includeDemo],
     queryFn: async (): Promise<Lesson[]> => {
       if (!userId) return []
-      return getLessons(userId, plan, filters)
+      return getLessons(userId, plan, filters, { includeDemo })
     },
     enabled: !!userId && (opts?.enabled ?? true),
     staleTime: 2 * 60 * 1000,
@@ -40,12 +41,13 @@ export function useLessonsByDate(dateStr: string, opts?: { enabled?: boolean }) 
 
   const studentId = currentUser?.role === "STUDENT" ? currentUser.uid : undefined
   const plan: Plan = wallet?.plan ?? "mensal"
+  const includeDemo = currentUser?.isDemo === true
 
   return useQuery({
-    queryKey: ["lessons", "by-date", dateStr, studentId, plan],
+    queryKey: ["lessons", "by-date", dateStr, studentId, plan, includeDemo],
     queryFn: (): Promise<Lesson[]> => {
       if (!studentId) return Promise.resolve([])
-      return getLessonsByDate(dateStr, studentId, plan)
+      return getLessonsByDate(dateStr, studentId, plan, { includeDemo })
     },
     enabled: !!studentId && !!dateStr && (opts?.enabled ?? true),
     staleTime: 2 * 60 * 1000,

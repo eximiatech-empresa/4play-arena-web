@@ -30,6 +30,7 @@ import { PLAN_CONFIGS } from "@/core/constants/plan-pricing"
 import { getProfessorById } from "@/core/constants/professors"
 import { calculateCheckinRevenue } from "@/core/math/financial-engine"
 import { resolvePlayValue } from "@/core/math/resolve-play-value"
+import { isDemoDoc } from "@/core/math/demo-filter"
 import type { Lesson } from "@/core/entities/lesson"
 import type { LessonHistoryEntry, TeacherLessonHistoryEntry } from "@/core/entities/lesson"
 import type { Transaction, Plan } from "@/core/entities/wallet"
@@ -38,6 +39,8 @@ export async function getLessons(
   studentId: string,
   plan: Plan,
   filters?: { professorId?: string; level?: string },
+  // Aulas demo so aparecem para contas demo (revisores das lojas).
+  opts?: { includeDemo?: boolean },
 ): Promise<Lesson[]> {
   const now = new Date();
   const lessonsRef = collection(db, "lessons");
@@ -56,6 +59,7 @@ export async function getLessons(
   const lessons = snap.docs.flatMap((d) => {
     // "finished" lessons are historical; all other statuses are shown with visual badges
     if (d.data().status === "finished") return [];
+    if (!opts?.includeDemo && isDemoDoc(d.data())) return [];
     const lesson = mapRawDocToLesson(d.id, d.data() as Record<string, unknown>, studentId, plan, now);
     return lesson ? [lesson] : [];
   });
@@ -65,7 +69,12 @@ export async function getLessons(
     : lessons;
 }
 
-export async function getLessonsByDate(dateStr: string, studentId: string, plan: Plan): Promise<Lesson[]> {
+export async function getLessonsByDate(
+  dateStr: string,
+  studentId: string,
+  plan: Plan,
+  opts?: { includeDemo?: boolean },
+): Promise<Lesson[]> {
   const now = new Date();
 
   const startPrefix = `${dateStr}T`;
@@ -83,6 +92,7 @@ export async function getLessonsByDate(dateStr: string, studentId: string, plan:
   return snap.docs.flatMap((d) => {
     const data = d.data();
     if (data.status === "finished") return [];
+    if (!opts?.includeDemo && isDemoDoc(data)) return [];
     const lesson = mapRawDocToLesson(d.id, d.data() as Record<string, unknown>, studentId, plan, now);
     return lesson ? [lesson] : [];
   });

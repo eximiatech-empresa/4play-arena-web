@@ -9,10 +9,12 @@ const QUERY_KEY = ["users"] as const
 
 export { type UserListItem } from "@/lib/firebase/firestore"
 
-export function useUsers() {
+/** Contas demo ficam ocultas por padrao; `includeDemo` mostra todas. */
+export function useUsers(opts?: { includeDemo?: boolean }) {
+  const includeDemo = opts?.includeDemo === true
   return useQuery({
-    queryKey: QUERY_KEY,
-    queryFn: getAllUsers,
+    queryKey: includeDemo ? [...QUERY_KEY, "with-demo"] : QUERY_KEY,
+    queryFn: () => getAllUsers({ includeDemo }),
     staleTime: 2 * 60 * 1000,
   })
 }

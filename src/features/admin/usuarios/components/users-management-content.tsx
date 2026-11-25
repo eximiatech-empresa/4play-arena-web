@@ -75,6 +75,7 @@ function UserCard({ user, onClick }: { user: UserListItem; onClick: () => void }
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <p className="text-sm font-semibold text-foreground">{user.name}</p>
+            {user.isDemo && <DemoBadge />}
             {!user.isActive && (
               <span className="text-[9px] font-bold text-red-500 bg-red-50 border border-red-200 rounded-full px-1.5 py-0.5 leading-none shrink-0">
                 Bloqueado
@@ -120,6 +121,7 @@ function UserRow({ user, onClick }: { user: UserListItem; onClick: () => void })
         <div>
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-foreground">{user.name}</p>
+            {user.isDemo && <DemoBadge />}
             {!user.isActive && (
               <span className="text-[10px] font-bold text-red-500 bg-red-50 border border-red-200 rounded-full px-1.5 py-0.5 leading-none">
                 Bloqueado
@@ -144,8 +146,17 @@ function UserRow({ user, onClick }: { user: UserListItem; onClick: () => void })
   )
 }
 
+function DemoBadge() {
+  return (
+    <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-1.5 py-0.5 leading-none shrink-0">
+      Demo
+    </span>
+  )
+}
+
 export function UsersManagementContent() {
-  const { data: users = [], isLoading, isError } = useUsers()
+  const [showDemo, setShowDemo] = useState(false)
+  const { data: users = [], isLoading, isError } = useUsers({ includeDemo: showDemo })
   const [searchTerm, setSearchTerm] = useState("")
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserListItem | null>(null)
@@ -327,6 +338,15 @@ export function UsersManagementContent() {
           >
             Alunos
           </Button>
+          <label className="ml-auto flex items-center gap-2 text-sm text-zinc-600 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showDemo}
+              onChange={(e) => setShowDemo(e.target.checked)}
+              className="w-4 h-4 accent-brand cursor-pointer"
+            />
+            Mostrar contas demo
+          </label>
         </div>
       </div>
 
